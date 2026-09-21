@@ -24,5 +24,7 @@ func NewJWKHandler(provider JWKProvider) *JWKHandler {
 func (h *JWKHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	jwks := h.provider.GetJWKS()
-	json.NewEncoder(w).Encode(jwks)
+	if err := json.NewEncoder(w).Encode(jwks); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
