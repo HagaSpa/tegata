@@ -6,9 +6,12 @@ import (
 	"log"
 	"net/http"
 	"os"
+
+	"github.com/HagaSpa/tegata/auth"
+	"github.com/HagaSpa/tegata/handler"
 )
 
-func handler(w http.ResponseWriter, r *http.Request) {
+func pingHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hello, World!")
 }
 
@@ -48,9 +51,17 @@ type OpenIdConfiguration struct {
 }
 
 func main() {
+	km, err := auth.NewKeyManager()
+	if err != nil {
+		log.Fatalf("failed to init key manager: %v", err)
+	}
+	jwksHandler := handler.NewJWKHandler(km)
+
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", handler)
+	mux.HandleFunc("/", pingHandler)
 	mux.HandleFunc("/.well-known/openid-configuration", openIdConfigurationHandler)
+	mux.Handle("/.well-known/jwks.json", jwksHandler)
+
 	fmt.Println("Serving on :8080...")
 	log.Fatal(http.ListenAndServe(":8080", mux))
 }
