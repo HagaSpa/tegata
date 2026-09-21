@@ -6,7 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
-	"errors"
+	"fmt"
 	"math/big"
 )
 
@@ -32,7 +32,7 @@ type KeyManager struct {
 func NewKeyManager() (*KeyManager, error) {
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		return nil, errors.New("faild GenerateKey")
+		return nil, fmt.Errorf("generate key: %w", err)
 	}
 	hash := sha256.Sum256(key.PublicKey.N.Bytes())
 	keyID := hex.EncodeToString(hash[:])
