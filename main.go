@@ -21,12 +21,12 @@ func main() {
 	}
 	jwksHandler := handler.NewJWKHandler(km)
 
-	issuer, exists := os.LookupEnv("issuer")
+	issuer, exists := os.LookupEnv("ISSUER")
 	if !exists {
 		issuer = "http://localhost:8080"
 	}
 	config := auth.NewOpenIdConfiguration(issuer)
-	metadataHandler := handler.NewMetadatHandler(config)
+	metadataHandler := handler.NewMetadataHandler(config)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /", pingHandler)

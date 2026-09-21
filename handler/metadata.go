@@ -11,7 +11,7 @@ type MetadataHandler struct {
 	config *auth.OpenIdConfiguration
 }
 
-func NewMetadatHandler(config *auth.OpenIdConfiguration) *MetadataHandler {
+func NewMetadataHandler(config *auth.OpenIdConfiguration) *MetadataHandler {
 	return &MetadataHandler{
 		config: config,
 	}
