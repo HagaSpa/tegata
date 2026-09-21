@@ -29,9 +29,9 @@ func main() {
 	metadataHandler := handler.NewMetadatHandler(config)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", pingHandler)
-	mux.Handle("/.well-known/openid-configuration", metadataHandler)
-	mux.Handle("/.well-known/jwks.json", jwksHandler)
+	mux.HandleFunc("GET /", pingHandler)
+	mux.Handle("GET /.well-known/openid-configuration", metadataHandler)
+	mux.Handle("GET /.well-known/jwks.json", jwksHandler)
 
 	fmt.Println("Serving on :8080...")
 	log.Fatal(http.ListenAndServe(":8080", mux))
