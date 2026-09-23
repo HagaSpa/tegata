@@ -44,3 +44,40 @@ func TestClientStore_ValidateRedirectURI(t *testing.T) {
 		})
 	}
 }
+
+func TestClientStore_Authenticate(t *testing.T) {
+	tests := []struct {
+		name     string
+		clientID string
+		secret   string
+		want     bool
+	}{
+		{
+			"正しい secret は true",
+			"tegata-sample",
+			"dummy-secret",
+			true,
+		},
+		{
+			"1 文字違いは false",
+			"tegata-sample",
+			"dummy-secre",
+			false,
+		},
+		{
+			"未登録 ID は false",
+			"unknown-client-id",
+			"dummy-secret",
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := NewClientStore()
+			got := s.Authenticate(tt.clientID, tt.secret)
+			if got != tt.want {
+				t.Errorf("Authenticate() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
