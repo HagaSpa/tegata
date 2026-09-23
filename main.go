@@ -28,10 +28,23 @@ func main() {
 	config := auth.NewOpenIdConfiguration(issuer)
 	metadataHandler := handler.NewMetadataHandler(config)
 
+	cl := auth.NewClientStore()
+	u, err := auth.NewUserStore(
+		"username",
+		"password",
+		"u-0001",
+	)
+	if err != nil {
+		log.Fatalf("failed to init user store: %v", err)
+	}
+	co := auth.NewCodeStore()
+	authHandler := handler.NewAuthorizeHandler(cl, u, co)
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /", pingHandler)
 	mux.Handle("GET /.well-known/openid-configuration", metadataHandler)
 	mux.Handle("GET /.well-known/jwks.json", jwksHandler)
+	mux.HandleFunc("GET /authorize", authHandler.Get)
 
 	fmt.Println("Serving on :8080...")
 	log.Fatal(http.ListenAndServe(":8080", mux))
