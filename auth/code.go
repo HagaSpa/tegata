@@ -22,7 +22,7 @@ type Code struct {
 }
 
 type CodeStore struct {
-	m     sync.Mutex
+	mu    sync.Mutex
 	codes map[string]*Code
 	now   func() time.Time
 }
@@ -58,15 +58,15 @@ func (s *CodeStore) Issue(
 		Sub:           sub,
 		ExpiresAt:     expiresAt,
 	}
-	s.m.Lock()
-	defer s.m.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.codes[key] = code
 	return key, nil
 }
 
 func (s *CodeStore) Consume(key string) (*Code, error) {
-	s.m.Lock()
-	defer s.m.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	code := s.codes[key]
 	if code == nil {
 		return nil, ErrInvalidCode
