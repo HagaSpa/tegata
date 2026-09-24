@@ -58,6 +58,49 @@ func (h *AuthorizeHandler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuthorizeHandler) Post(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		http.Error(w, "invalid values in form", http.StatusBadRequest)
+		return
+	}
+	req := parseAuthorizeRequest(r.PostForm)
+	if !h.clients.ValidateRedirectURI(req.ClientID, req.RedirectURI) {
+		http.Error(w, "invalid client_id or redirect_uri", http.StatusBadRequest)
+		return
+	}
+	if code, desc := req.validate(); code != "" {
+		redirectError(w, r, req.RedirectURI, code, desc, req.State)
+		return
+	}
+	// 認証
+	sub, err := h.user.Authenticate(r.PostFormValue("username"), r.PostFormValue("password"))
+	if err != nil {
+		w.Write([]byte("login page. authenticate is failed"))
+		return
+	}
+	// 判断
+	action := r.PostFormValue("action")
+	switch action {
+	case "deny":
+		redirectError(w, r, req.RedirectURI, "access_denied", "the user denied the request", req.State)
+		return
+	case "approve":
+		// approve のみ発行
+		code, err := h.code.Issue(req.ClientID, req.RedirectURI, req.Scope, req.CodeChallenge, req.Nonce, sub)
+		if err != nil {
+			redirectError(w, r, req.RedirectURI, "server_error", "failed to issue code", req.State)
+			return
+		}
+		values := url.Values{}
+		values.Set("code", code)
+		if req.State != "" {
+			values.Set("state", req.State)
+		}
+		redirectWith(w, r, req.RedirectURI, values)
+	default:
+		http.Error(w, "unknown action result", http.StatusBadRequest)
+		return
+	}
 }
 
 type authorizeRequest struct {

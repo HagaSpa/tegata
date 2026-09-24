@@ -45,6 +45,7 @@ func main() {
 	mux.Handle("GET /.well-known/openid-configuration", metadataHandler)
 	mux.Handle("GET /.well-known/jwks.json", jwksHandler)
 	mux.HandleFunc("GET /authorize", authHandler.Get)
+	mux.HandleFunc("POST /authorize", authHandler.Post)
 
 	fmt.Println("Serving on :8080...")
 	log.Fatal(http.ListenAndServe(":8080", mux))
