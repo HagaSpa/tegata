@@ -108,16 +108,31 @@ func redirectError(
 	desc string,
 	state string,
 ) {
+	values := url.Values{}
+	values.Set("error", errCode)
+	values.Set("error_description", desc)
+	if state != "" {
+		values.Set("state", state)
+	}
+	redirectWith(w, r, redirectURI, values)
+}
+
+func redirectWith(
+	w http.ResponseWriter,
+	r *http.Request,
+	redirectURI string,
+	values url.Values,
+) {
 	u, err := url.Parse(redirectURI)
 	if err != nil {
 		http.Error(w, "registered redirect_uri is invalid", http.StatusInternalServerError)
 		return
 	}
 	q := u.Query()
-	q.Set("error", errCode)
-	q.Set("error_description", desc)
-	if state != "" {
-		q.Set("state", state)
+	for k, vs := range values {
+		for _, v := range vs {
+			q.Add(k, v)
+		}
 	}
 	u.RawQuery = q.Encode()
 	http.Redirect(w, r, u.String(), http.StatusFound)
