@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Tegata Login Page</title>
+</head>
+<body>
+    <h2> Tegata OIDC Server </h2>
+    <div align="center">
+        <table border="0">
+            <form action="/authorize" method="post">
+                <input type="hidden" name="client_id" value={{.ClientID}}>
+                <input type="hidden" name="redirect_uri" value={{.RedirectURI}}>
+                <input type="hidden" name="response_type" value={{.ResponseType}}>
+                <input type="hidden" name="scope" value={{.Scope}}>
+                <input type="hidden" name="state" value={{.State}}>
+                <input type="hidden" name="nonce" value={{.Nonce}}>
+                <input type="hidden" name="code_challenge" value={{.CodeChallenge}}>
+                <input type="hidden" name="code_challenge_method" value={{.CodeChallengeMethod}}>
+                <tr>
+                    <th>
+                        username
+                    </th>
+                    <td>
+                        <input type="text" name="username" value="" size="24">
+                    </td>
+                </tr>
+                <tr>
+                    <th>
+                        password
+                    </th>
+                    <td>
+                        <input type="password" name="password" value="" size="24">
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2">
+                      <button type="submit" name="action" value="approve"> approve </button>
+                      <button type="submit" name="action" value="deny"> deny </button>
+                    </td>
+                </tr>
+            </form>
+        </table>
+    </div>
+</body>
+</html>
