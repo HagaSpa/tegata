@@ -44,8 +44,15 @@ func TestAuthorizeHandler_Get(t *testing.T) {
 			location := rec.Header().Get("Location")
 			switch tt.wantStatus {
 			case http.StatusOK:
-				if got := rec.Body.String(); got != "login page" {
-					t.Errorf("body = %q, want %q", got, "login page")
+				body := rec.Body.String()
+				if !strings.Contains(body, "<form") {
+					t.Errorf("body does not contain a form: %q", body)
+				}
+				if want := `name="state" value="abc"`; !strings.Contains(body, want) {
+					t.Errorf("body does not carry state as hidden input: %q", body)
+				}
+				if strings.Contains(body, "invalid username or password") {
+					t.Errorf("GET must not show an error message: %q", body)
 				}
 			case http.StatusBadRequest:
 				if location != "" {
@@ -129,7 +136,7 @@ func TestAuthorizeHandler_Post(t *testing.T) {
 		{"拒否は access_denied", func(f url.Values) { f.Set("action", "deny") }, http.StatusFound, "access_denied", false},
 		{"パスワード違いは再表示", func(f url.Values) { f.Set("password", "wrong") }, http.StatusOK, "", false},
 		{"ユーザ不在も再表示", func(f url.Values) { f.Set("username", "nobody") }, http.StatusOK, "", false},
-		{"hidden の redirect_uri 差し替えは 400", func(f url.Values) { f.Set("redirecct_uri", "http://localhost:9999/callbacx") }, http.StatusBadRequest, "", false},
+		{"hidden の redirect_uri 差し替えは 400", func(f url.Values) { f.Set("redirect_uri", "http://localhost:9999/callbacx") }, http.StatusBadRequest, "", false},
 		{"hidden の client_id 差し替えは 400", func(f url.Values) { f.Set("client_id", "unknown") }, http.StatusBadRequest, "", false},
 		{"hidden の code_challenge 削除は invalid_request", func(f url.Values) { f.Del("code_challenge") }, http.StatusFound, "invalid_request", false},
 		{"action 不正は 400", func(f url.Values) { f.Set("action", "x") }, http.StatusBadRequest, "", false},
@@ -154,6 +161,9 @@ func TestAuthorizeHandler_Post(t *testing.T) {
 				if location != "" {
 					t.Errorf("Location = %q, want empty", location)
 				}
+				if tt.wantStatus == http.StatusOK && !strings.Contains(rec.Body.String(), "invalid username or password") {
+					t.Errorf("re-rendered page must show the error: %q", rec.Body.String())
+				}
 			case http.StatusFound:
 				loc, err := url.Parse(location)
 				if err != nil {
@@ -163,7 +173,7 @@ func TestAuthorizeHandler_Post(t *testing.T) {
 				if got := q.Get("error"); got != tt.wantError {
 					t.Errorf("error = %q, want %q", got, tt.wantError)
 				}
-				if tt.wantCode && q.Has("code") {
+				if !tt.wantCode && q.Has("code") {
 					t.Errorf("code must not be issued: %q", q.Get("code"))
 				}
 				if got := q.Get("state"); got != f.Get("state") {
@@ -199,5 +209,22 @@ func TestAuthorizeHandler_Post_OmitsStateWhenAbsent(t *testing.T) {
 	}
 	if loc.Query().Has("state") {
 		t.Errorf("Location %q must not contain state", loc)
+	}
+}
+
+func TestAuthorizeHandler_Get_EscapesReflectedValues(t *testing.T) {
+	q := validAuthorizeQuery()
+	q.Set("state", `"><script>alert(1)</script>`)
+	req := httptest.NewRequest(http.MethodGet, "/authorize?"+q.Encode(), nil)
+	rec := httptest.NewRecorder()
+
+	NewAuthorizeHandler(auth.NewClientStore(), nil, nil).Get(rec, req)
+
+	body := rec.Body.String()
+	if strings.Contains(body, "<script>") {
+		t.Errorf("state was reflected without escaping: %q", body)
+	}
+	if !strings.Contains(body, "&lt;script&gt;") && !strings.Contains(body, "\u003cscript\u003e") {
+		t.Errorf("escaped state not found in body: %q", body)
 	}
 }

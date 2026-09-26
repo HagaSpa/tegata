@@ -1,11 +1,16 @@
 package handler
 
 import (
+	"embed"
+	"html/template"
 	"net/http"
 	"net/url"
 	"slices"
 	"strings"
 )
+
+//go:embed index.html
+var htmlFS embed.FS
 
 type ClientValidator interface {
 	ValidateRedirectURI(clientID string, uri string) bool
@@ -30,6 +35,7 @@ type AuthorizeHandler struct {
 	clients ClientValidator
 	user    UserAuthenticator
 	code    CodeIssuer
+	file    *template.Template
 }
 
 func NewAuthorizeHandler(
@@ -37,10 +43,12 @@ func NewAuthorizeHandler(
 	user UserAuthenticator,
 	code CodeIssuer,
 ) *AuthorizeHandler {
+	f := template.Must(template.ParseFS(htmlFS, "index.html"))
 	return &AuthorizeHandler{
 		clients: clients,
 		user:    user,
 		code:    code,
+		file:    f,
 	}
 }
 
@@ -54,7 +62,7 @@ func (h *AuthorizeHandler) Get(w http.ResponseWriter, r *http.Request) {
 		redirectError(w, r, req.RedirectURI, code, desc, req.State)
 		return
 	}
-	w.Write([]byte("login page"))
+	h.render(w, req)
 }
 
 func (h *AuthorizeHandler) Post(w http.ResponseWriter, r *http.Request) {
@@ -75,7 +83,8 @@ func (h *AuthorizeHandler) Post(w http.ResponseWriter, r *http.Request) {
 	// 認証
 	sub, err := h.user.Authenticate(r.PostFormValue("username"), r.PostFormValue("password"))
 	if err != nil {
-		w.Write([]byte("login page. authenticate is failed"))
+		req.Error = "invalid username or password"
+		h.render(w, req)
 		return
 	}
 	// 判断
@@ -103,6 +112,13 @@ func (h *AuthorizeHandler) Post(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h *AuthorizeHandler) render(w http.ResponseWriter, req *authorizeRequest) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := h.file.Execute(w, req); err != nil {
+		http.Error(w, "failed to render login page", http.StatusInternalServerError)
+	}
+}
+
 type authorizeRequest struct {
 	ClientID            string
 	RedirectURI         string
@@ -112,6 +128,7 @@ type authorizeRequest struct {
 	Nonce               string
 	CodeChallenge       string
 	CodeChallengeMethod string
+	Error               string
 }
 
 func parseAuthorizeRequest(v url.Values) *authorizeRequest {
