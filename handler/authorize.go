@@ -12,7 +12,7 @@ import (
 //go:embed index.html
 var htmlFS embed.FS
 
-type ClientValidator interface {
+type RedirectURIValidator interface {
 	ValidateRedirectURI(clientID string, uri string) bool
 }
 
@@ -32,14 +32,14 @@ type CodeIssuer interface {
 }
 
 type AuthorizeHandler struct {
-	clients ClientValidator
+	clients RedirectURIValidator
 	user    UserAuthenticator
 	code    CodeIssuer
 	file    *template.Template
 }
 
 func NewAuthorizeHandler(
-	clients ClientValidator,
+	clients RedirectURIValidator,
 	user UserAuthenticator,
 	code CodeIssuer,
 ) *AuthorizeHandler {
