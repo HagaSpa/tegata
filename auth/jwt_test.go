@@ -131,4 +131,42 @@ func TestKeyManager_Sign(t *testing.T) {
 			t.Errorf("VerifyPKCS1v15 is failed: %v", err)
 		}
 	})
+
+	t.Run("payload を改竄されたら、signature と合致しない", func(t *testing.T) {
+		m := newKeyManager(t)
+		claim := newFixedClaim(t)
+		jwt, err := m.Sign(claim)
+		if err != nil {
+			t.Fatalf("Sign() failed: %v", err)
+		}
+		invalidPayload := jwt.payload + "a"
+		digest := sha256.Sum256([]byte(jwt.header + "." + invalidPayload))
+		dec, err := base64.RawURLEncoding.DecodeString(jwt.signature)
+		if err != nil {
+			t.Fatalf("Decode failed: %v", err)
+		}
+		err = rsa.VerifyPKCS1v15(&m.privateKey.PublicKey, crypto.SHA256, digest[:], dec)
+		if err == nil {
+			t.Errorf("VerifyPKCS1v15 is success: %v", err)
+		}
+	})
+
+	t.Run("signature を改竄したら、digest と合致しない", func(t *testing.T) {
+		m := newKeyManager(t)
+		claim := newFixedClaim(t)
+		jwt, err := m.Sign(claim)
+		if err != nil {
+			t.Fatalf("Sign() failed: %v", err)
+		}
+		digest := sha256.Sum256([]byte(jwt.header + "." + jwt.payload))
+		invalidSignature := jwt.signature + "a"
+		dec, err := base64.RawURLEncoding.DecodeString(invalidSignature)
+		if err != nil {
+			t.Fatalf("Decode failed: %v", err)
+		}
+		err = rsa.VerifyPKCS1v15(&m.privateKey.PublicKey, crypto.SHA256, digest[:], dec)
+		if err == nil {
+			t.Errorf("VerifyPKCS1v15 is success: %v", err)
+		}
+	})
 }
