@@ -22,7 +22,7 @@ func newKeyManager(t *testing.T) *KeyManager {
 func newFixedClaim(t *testing.T) *Claim {
 	t.Helper()
 	return &Claim{
-		Iss:   "http://localhost:8000",
+		Iss:   "http://localhost:8080",
 		Sub:   "u-0001",
 		Aud:   "tegata-sample",
 		Iat:   testBase.Unix(),
