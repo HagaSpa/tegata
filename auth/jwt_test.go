@@ -3,6 +3,7 @@ package auth
 import (
 	"encoding/base64"
 	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -68,6 +69,7 @@ func TestKeyManager_Sign(t *testing.T) {
 		err = json.Unmarshal(dec, &h)
 		if err != nil {
 			t.Errorf("Unmarshal failed: %v", err)
+			return
 		}
 		if h["alg"] != "RS256" {
 			t.Error("alg is not RS256")
@@ -75,6 +77,31 @@ func TestKeyManager_Sign(t *testing.T) {
 		}
 		if h["kid"] != m.GetJWKS().Keys[0].Kid {
 			t.Error("kid is not KeyManager.GetJWKS().Keys[0].kid")
+			return
+		}
+	})
+
+	t.Run("payload から claim が復元できること", func(t *testing.T) {
+		m := newKeyManager(t)
+		claim := newFixedClaim(t)
+		jwt, err := m.Sign(claim)
+		if err != nil {
+			t.Errorf("Sign() failed: %v", err)
+			return
+		}
+		dec, err := base64.RawURLEncoding.DecodeString(jwt.payload)
+		if err != nil {
+			t.Errorf("Decode failed: %v", err)
+			return
+		}
+		p := &Claim{}
+		err = json.Unmarshal(dec, &p)
+		if err != nil {
+			t.Errorf("Unmarshal failed: %v", err)
+			return
+		}
+		if !reflect.DeepEqual(claim, p) {
+			t.Error("claim, payload in not same")
 			return
 		}
 	})
