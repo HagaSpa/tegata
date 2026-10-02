@@ -1,6 +1,9 @@
 package auth
 
 import (
+	"crypto"
+	"crypto/rsa"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"reflect"
@@ -102,6 +105,27 @@ func TestKeyManager_Sign(t *testing.T) {
 		}
 		if !reflect.DeepEqual(claim, p) {
 			t.Error("claim, payload in not same")
+			return
+		}
+	})
+
+	t.Run("signature の内容確認", func(t *testing.T) {
+		m := newKeyManager(t)
+		claim := newFixedClaim(t)
+		jwt, err := m.Sign(claim)
+		if err != nil {
+			t.Errorf("Sign() failed: %v", err)
+			return
+		}
+		digest := sha256.Sum256([]byte(jwt.header + "." + jwt.payload))
+		dec, err := base64.RawURLEncoding.DecodeString(jwt.signature)
+		if err != nil {
+			t.Errorf("Decode failed: %v", err)
+			return
+		}
+		err = rsa.VerifyPKCS1v15(&m.privateKey.PublicKey, crypto.SHA256, digest[:], dec)
+		if err != nil {
+			t.Errorf("VerifyPKCS1v15 is failed: %v", err)
 			return
 		}
 	})
