@@ -13,11 +13,11 @@ import (
 type Claim struct {
 	Iss   string `json:"iss"`
 	Sub   string `json:"sub"`
-	Aud   string `json:"aug"`
+	Aud   string `json:"aud"`
 	Iat   int64  `json:"iat"`
 	Exp   int64  `json:"exp"`
 	Nonce string `json:"nonce,omitempty"`
-	Scope string `json:"scole,omitempty"`
+	Scope string `json:"scope,omitempty"`
 }
 
 type JWT struct {

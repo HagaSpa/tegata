@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -29,6 +30,7 @@ func newFixedClaim(t *testing.T) *Claim {
 		Iat:   testBase.Unix(),
 		Exp:   testBase.Unix(),
 		Nonce: "EVKOT75CSF4I56CBZW",
+		Scope: "test",
 	}
 }
 
@@ -97,16 +99,45 @@ func TestKeyManager_Sign(t *testing.T) {
 			t.Errorf("Decode failed: %v", err)
 			return
 		}
-		p := &Claim{}
+		p := map[string]any{}
 		err = json.Unmarshal(dec, &p)
 		if err != nil {
 			t.Errorf("Unmarshal failed: %v", err)
 			return
 		}
-		if !reflect.DeepEqual(claim, p) {
-			t.Error("claim, payload in not same")
+		if p["iss"] != claim.Iss {
+			t.Error("iss is invalid")
 			return
 		}
+		if p["sub"] != claim.Sub {
+			t.Error("sub is invalid")
+			return
+		}
+		if p["aud"] != claim.Aud {
+			t.Error("aud is invalid")
+			return
+		}
+		if int64(p["iat"].(float64)) != claim.Iat {
+			fmt.Print(reflect.TypeOf(p["iat"]))
+			t.Error("iat is invalid")
+			return
+		}
+		if int64(p["exp"].(float64)) != claim.Exp {
+			t.Error("exp is invalid")
+			return
+		}
+		if p["nonce"] != claim.Nonce {
+			t.Error("nonce is invalid")
+			return
+		}
+		if p["scope"] != claim.Scope {
+			t.Error("scope is invalid")
+			return
+		}
+		// if !reflect.DeepEqual(claim, p) {
+		// 	t.Error("claim, payload in not same")
+		// 	return
+		// }
 	})
 
 	t.Run("signature の内容確認", func(t *testing.T) {
