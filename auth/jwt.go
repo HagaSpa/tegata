@@ -33,18 +33,18 @@ func (m *KeyManager) Sign(claim *Claim) (*JWT, error) {
 		"kid": m.keyID,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed generate header: %v", err)
+		return nil, fmt.Errorf("failed to generate header: %w", err)
 	}
 	p, err := json.Marshal(claim)
 	if err != nil {
-		return nil, fmt.Errorf("failed generate payload: %v", err)
+		return nil, fmt.Errorf("failed generate payload: %w", err)
 	}
 	header := base64.RawURLEncoding.EncodeToString(h)
 	payload := base64.RawURLEncoding.EncodeToString(p)
 	digest := sha256.Sum256([]byte(header + "." + payload))
 	s, err := rsa.SignPKCS1v15(rand.Reader, m.privateKey, crypto.SHA256, digest[:])
 	if err != nil {
-		return nil, fmt.Errorf("fadild generate singed: %v", err)
+		return nil, fmt.Errorf("fadild generate singed: %w", err)
 	}
 	signature := base64.RawURLEncoding.EncodeToString(s)
 	return &JWT{
