@@ -70,7 +70,7 @@ func TestKeyManager_Sign(t *testing.T) {
 		if h["alg"] != "RS256" {
 			t.Error("alg is not RS256")
 		}
-		if h["kid"] != m.GetJWKS().Keys[0].Kid {
+		if h["kid"] != m.JWKS().Keys[0].Kid {
 			t.Error("kid is not KeyManager.GetJWKS().Keys[0].kid")
 		}
 	})

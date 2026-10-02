@@ -7,15 +7,15 @@ import (
 	"github.com/HagaSpa/tegata/auth"
 )
 
-type JWKProvider interface {
-	GetJWKS() auth.JWKS
+type JWKSProvider interface {
+	JWKS() auth.JWKS
 }
 
 type JWKHandler struct {
-	provider JWKProvider
+	provider JWKSProvider
 }
 
-func NewJWKHandler(provider JWKProvider) *JWKHandler {
+func NewJWKHandler(provider JWKSProvider) *JWKHandler {
 	return &JWKHandler{
 		provider: provider,
 	}
@@ -23,7 +23,7 @@ func NewJWKHandler(provider JWKProvider) *JWKHandler {
 
 func (h *JWKHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	jwks := h.provider.GetJWKS()
+	jwks := h.provider.JWKS()
 	if err := json.NewEncoder(w).Encode(jwks); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}

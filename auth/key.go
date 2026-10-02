@@ -42,7 +42,7 @@ func NewKeyManager() (*KeyManager, error) {
 	}, nil
 }
 
-func (m *KeyManager) GetJWKS() JWKS {
+func (m *KeyManager) JWKS() JWKS {
 	pubKey := m.privateKey.PublicKey
 	n := base64.RawURLEncoding.EncodeToString(pubKey.N.Bytes())
 	e := base64.RawURLEncoding.EncodeToString(big.NewInt(int64(pubKey.E)).Bytes())
