@@ -134,10 +134,6 @@ func TestKeyManager_Sign(t *testing.T) {
 			t.Error("scope is invalid")
 			return
 		}
-		// if !reflect.DeepEqual(claim, p) {
-		// 	t.Error("claim, payload in not same")
-		// 	return
-		// }
 	})
 
 	t.Run("signature の内容確認", func(t *testing.T) {
