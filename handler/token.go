@@ -51,9 +51,9 @@ func NewTokenHandler(
 
 type successResponse struct {
 	AccessToken string `json:"access_token"`
-	ToeknType   string `json:"token_type"`
+	TokenType   string `json:"token_type"`
 	ExpiresIn   int64  `json:"expires_in"`
-	IdToken     string `json:"id_token"`
+	IDToken     string `json:"id_token"`
 	Scope       string `json:"scope"`
 }
 
@@ -137,9 +137,9 @@ func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Pragma", "no-cache")
 	b := successResponse{
 		AccessToken: access.String(),
-		ToeknType:   "Bearer",
+		TokenType:   "Bearer",
 		ExpiresIn:   int64(tokenTTL.Seconds()),
-		IdToken:     idToken.String(),
+		IDToken:     idToken.String(),
 		Scope:       code.Scope,
 	}
 	if err := json.NewEncoder(w).Encode(b); err != nil {
