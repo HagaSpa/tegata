@@ -40,12 +40,15 @@ func main() {
 	co := auth.NewCodeStore()
 	authHandler := handler.NewAuthorizeHandler(cl, u, co)
 
+	tokenHandler := handler.NewTokenHandler(cl, co, km, issuer)
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /", pingHandler)
 	mux.Handle("GET /.well-known/openid-configuration", metadataHandler)
 	mux.Handle("GET /.well-known/jwks.json", jwksHandler)
 	mux.HandleFunc("GET /authorize", authHandler.Get)
 	mux.HandleFunc("POST /authorize", authHandler.Post)
+	mux.HandleFunc("POST /token", tokenHandler.Post)
 
 	fmt.Println("Serving on :8080...")
 	log.Fatal(http.ListenAndServe(":8080", mux))
