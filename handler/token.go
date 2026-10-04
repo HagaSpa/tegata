@@ -57,7 +57,7 @@ type successResponse struct {
 
 func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, "invalid values in form", http.StatusBadRequest)
+		tokenError(w, 400, "invalid_request", "parse failed")
 		return
 	}
 
@@ -83,7 +83,7 @@ func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 			tokenError(w, 400, "invalid_grant", "code is invalid")
 			return
 		} else {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			tokenError(w, 500, "internal_server_error", "error occured")
 			return
 		}
 	}
@@ -113,7 +113,7 @@ func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 		Nonce: code.Nonce,
 	})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		tokenError(w, 500, "internal_server_error", "error occured")
 		return
 	}
 	access, err := h.signer.Sign(&auth.Claim{
@@ -125,7 +125,7 @@ func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 		Scope: code.Scope,
 	})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		tokenError(w, 500, "internal_server_error", "error occured")
 		return
 	}
 
@@ -140,7 +140,7 @@ func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 		Scope:       code.Scope,
 	}
 	if err := json.NewEncoder(w).Encode(b); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		tokenError(w, 500, "internal_server_error", "error occured")
 		return
 	}
 }
