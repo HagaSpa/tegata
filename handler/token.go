@@ -12,6 +12,8 @@ import (
 	"github.com/HagaSpa/tegata/auth"
 )
 
+const tokenTTL = time.Hour
+
 type ClientAuthenticator interface {
 	Authenticate(clientID, secret string) bool
 }
@@ -110,7 +112,7 @@ func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 		Sub:   code.Sub,
 		Aud:   user,
 		Iat:   now.Unix(),
-		Exp:   now.Add(1 * time.Hour).Unix(),
+		Exp:   now.Add(tokenTTL).Unix(),
 		Nonce: code.Nonce,
 	})
 	if err != nil {
@@ -122,7 +124,7 @@ func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 		Sub:   code.Sub,
 		Aud:   h.issuer + "/userinfo",
 		Iat:   now.Unix(),
-		Exp:   now.Add(1 * time.Hour).Unix(),
+		Exp:   now.Add(tokenTTL).Unix(),
 		Scope: code.Scope,
 	})
 	if err != nil {
@@ -136,7 +138,7 @@ func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 	b := successResponse{
 		AccessToken: access.String(),
 		ToeknType:   "Bearer",
-		ExpiresIn:   3600,
+		ExpiresIn:   int64(tokenTTL.Seconds()),
 		IdToken:     idToken.String(),
 		Scope:       code.Scope,
 	}
