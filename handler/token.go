@@ -65,11 +65,11 @@ func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		user = r.PostFormValue("client_id")
 		pass = r.PostFormValue("client_secret")
-	}
-	if !h.client.Authenticate(user, pass) {
-		w.Header().Set("WWW-Authenticate", "Basic")
-		tokenError(w, 401, "invalid_client", "uername or password is invalid")
-		return
+		if !h.client.Authenticate(user, pass) {
+			w.Header().Set("WWW-Authenticate", "Basic realm=\"tegata\"")
+			tokenError(w, 401, "invalid_client", "uername or password is invalid")
+			return
+		}
 	}
 
 	if r.PostFormValue("grant_type") != "authorization_code" {
