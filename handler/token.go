@@ -96,6 +96,7 @@ func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	now := h.now()
 	v := r.PostFormValue("code_verifier")
 	sum := sha256.Sum256([]byte(v))
 	got := base64.RawURLEncoding.EncodeToString(sum[:])
@@ -108,8 +109,8 @@ func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 		Iss:   h.issuer,
 		Sub:   code.Sub,
 		Aud:   user,
-		Iat:   h.now().Unix(),
-		Exp:   h.now().Add(1 * time.Hour).Unix(),
+		Iat:   now.Unix(),
+		Exp:   now.Add(1 * time.Hour).Unix(),
 		Nonce: code.Nonce,
 	})
 	if err != nil {
@@ -120,8 +121,8 @@ func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 		Iss:   h.issuer,
 		Sub:   code.Sub,
 		Aud:   h.issuer + "/userinfo",
-		Iat:   h.now().Unix(),
-		Exp:   h.now().Add(1 * time.Hour).Unix(),
+		Iat:   now.Unix(),
+		Exp:   now.Add(1 * time.Hour).Unix(),
 		Scope: code.Scope,
 	})
 	if err != nil {
