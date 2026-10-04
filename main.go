@@ -19,14 +19,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to init key manager: %v", err)
 	}
-	jwksHandler := handler.NewJWKHandler(km)
 
 	issuer, exists := os.LookupEnv("ISSUER")
 	if !exists {
 		issuer = "http://localhost:8080"
 	}
 	config := auth.NewOpenIdConfiguration(issuer)
-	metadataHandler := handler.NewMetadataHandler(config)
 
 	cl := auth.NewClientStore()
 	u, err := auth.NewUserStore(
@@ -37,9 +35,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to init user store: %v", err)
 	}
-	co := auth.NewCodeStore()
-	authHandler := handler.NewAuthorizeHandler(cl, u, co)
 
+	co := auth.NewCodeStore()
+
+	jwksHandler := handler.NewJWKHandler(km)
+	metadataHandler := handler.NewMetadataHandler(config)
+	authHandler := handler.NewAuthorizeHandler(cl, u, co)
 	tokenHandler := handler.NewTokenHandler(cl, co, km, issuer)
 
 	mux := http.NewServeMux()
