@@ -25,7 +25,7 @@ func NewOpenIdConfiguration(issuer string) *OpenIdConfiguration {
 		SubjectTypesSupported:             []string{"public"},
 		IdTokenSigningAlgValuesSupported:  []string{"RS256"},
 		ScopesSupported:                   []string{"openid"},
-		TokenEndpointAuthMethodsSupported: []string{"client_secret_post"},
+		TokenEndpointAuthMethodsSupported: []string{"client_secret_post", "client_secret_basic"},
 		CodeChallengeMethodsSupported:     []string{"S256"},
 	}
 }
