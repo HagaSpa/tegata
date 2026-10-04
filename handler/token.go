@@ -87,7 +87,7 @@ func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 			tokenError(w, 400, "invalid_grant", "code is invalid")
 			return
 		} else {
-			tokenError(w, 500, "internal_server_error", "error occured")
+			tokenError(w, 500, "server_error", "error occured")
 			return
 		}
 	}
@@ -118,7 +118,7 @@ func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 		Nonce: code.Nonce,
 	})
 	if err != nil {
-		tokenError(w, 500, "internal_server_error", "error occured")
+		tokenError(w, 500, "server_error", "error occured")
 		return
 	}
 	access, err := h.signer.Sign(&auth.Claim{
@@ -130,7 +130,7 @@ func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 		Scope: code.Scope,
 	})
 	if err != nil {
-		tokenError(w, 500, "internal_server_error", "error occured")
+		tokenError(w, 500, "server_error", "error occured")
 		return
 	}
 
@@ -145,7 +145,7 @@ func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 		Scope:       code.Scope,
 	}
 	if err := json.NewEncoder(w).Encode(b); err != nil {
-		tokenError(w, 500, "internal_server_error", "error occured")
+		tokenError(w, 500, "server_error", "error occured")
 		return
 	}
 }
