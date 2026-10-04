@@ -78,9 +78,14 @@ func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 	}
 
 	code, err := h.codes.Consume(r.PostFormValue("code"))
-	if errors.Is(err, auth.ErrInvalidCode) {
-		tokenError(w, 400, "invalid_grant", "code is invalid")
-		return
+	if err != nil {
+		if errors.Is(err, auth.ErrInvalidCode) {
+			tokenError(w, 400, "invalid_grant", "code is invalid")
+			return
+		} else {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 	if code.ClientID != user {
 		tokenError(w, 400, "invalid_grant", "client_id is invalid")
