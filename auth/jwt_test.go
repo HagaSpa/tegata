@@ -208,7 +208,7 @@ func TestKeyManager_Verify(t *testing.T) {
 		}
 	})
 
-	t.Run("exp を過去にしたらエラー. m.now は実行時", func(t *testing.T) {
+	t.Run("exp を過去にしたらエラー", func(t *testing.T) {
 		m := newKeyManager(t)
 		m.now = func() time.Time { return testBase }
 		claim := newFixedClaim(t)
