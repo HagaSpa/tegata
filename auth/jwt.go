@@ -60,6 +60,9 @@ func (m *KeyManager) Sign(claim *Claim) (*JWT, error) {
 
 func (m *KeyManager) Verify(token string) (*Claim, error) {
 	sl := strings.Split(token, ".")
+	if len(sl) != 3 {
+		return nil, errors.New("Invalid token")
+	}
 	header := sl[0]
 	payload := sl[1]
 	signature := sl[2]
@@ -73,9 +76,9 @@ func (m *KeyManager) Verify(token string) (*Claim, error) {
 		return nil, fmt.Errorf("Unmarshal failed: %w", err)
 	}
 	if h["alg"] != "RS256" {
-		return nil, fmt.Errorf("invalid alg format: %w", err)
+		return nil, errors.New("unsupported alg")
 	}
-	if h["kid"] != m.JWKS().Keys[0].Kid {
+	if h["kid"] != m.keyID {
 		return nil, fmt.Errorf("kid is not KeyManager.GetJWKS().Keys[0].kid")
 	}
 
@@ -88,7 +91,7 @@ func (m *KeyManager) Verify(token string) (*Claim, error) {
 		return nil, fmt.Errorf("Verify failed: %w", err)
 	}
 
-	pd, err := base64.RawStdEncoding.DecodeString(payload)
+	pd, err := base64.RawURLEncoding.DecodeString(payload)
 	if err != nil {
 		return nil, fmt.Errorf("failed decode payload: %w", err)
 	}
