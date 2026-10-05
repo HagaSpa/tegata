@@ -6,8 +6,10 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 func newKeyManager(t *testing.T) *KeyManager {
@@ -26,7 +28,7 @@ func newFixedClaim(t *testing.T) *Claim {
 		Sub:   "u-0001",
 		Aud:   "tegata-sample",
 		Iat:   testBase.Unix(),
-		Exp:   testBase.Unix(),
+		Exp:   testBase.Add(time.Hour).Unix(),
 		Nonce: "EVKOT75CSF4I56CBZW",
 		Scope: "test",
 	}
@@ -167,6 +169,56 @@ func TestKeyManager_Sign(t *testing.T) {
 		err = rsa.VerifyPKCS1v15(&m.privateKey.PublicKey, crypto.SHA256, digest[:], dec)
 		if err == nil {
 			t.Errorf("VerifyPKCS1v15 is success: %v", err)
+		}
+	})
+}
+
+func TestKeyManager_Verify(t *testing.T) {
+	t.Run("Sign した結果を Verify すると同じ Claims になる", func(t *testing.T) {
+		m := newKeyManager(t)
+		m.now = func() time.Time { return testBase }
+		claim := newFixedClaim(t)
+		jwt, err := m.Sign(claim)
+		if err != nil {
+			t.Fatalf("Sign() failed: %v", err)
+		}
+		token := jwt.String()
+		c, err := m.Verify(token)
+		if err != nil {
+			t.Fatalf("Verify() failed: %v", err)
+		}
+		if !reflect.DeepEqual(claim, c) {
+			t.Errorf("Verified claim is not equal Sign().jwt")
+		}
+	})
+
+	t.Run("signature を改竄したら、エラー", func(t *testing.T) {
+		m := newKeyManager(t)
+		m.now = func() time.Time { return testBase }
+		claim := newFixedClaim(t)
+		jwt, err := m.Sign(claim)
+		if err != nil {
+			t.Fatalf("Sign() failed: %v", err)
+		}
+		jwt.signature = jwt.signature + "a"
+		token := jwt.String()
+		if _, err = m.Verify(token); err == nil {
+			t.Fatalf("Verify() is success: %v", err)
+		}
+	})
+
+	t.Run("exp を過去にしたらエラー. m.now は実行時", func(t *testing.T) {
+		m := newKeyManager(t)
+		m.now = func() time.Time { return testBase }
+		claim := newFixedClaim(t)
+		claim.Exp = testBase.Add(-24 * time.Hour).Unix()
+		jwt, err := m.Sign(claim)
+		if err != nil {
+			t.Fatalf("Sign() failed: %v", err)
+		}
+		token := jwt.String()
+		if _, err = m.Verify(token); err != ErrExpired {
+			t.Fatalf("Exipired claim is success: %v", err)
 		}
 	})
 }

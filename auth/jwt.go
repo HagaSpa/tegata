@@ -96,7 +96,7 @@ func (m *KeyManager) Verify(token string) (*Claim, error) {
 	if err = json.Unmarshal(pd, &c); err != nil {
 		return nil, fmt.Errorf("Unmarshal failed: %w", err)
 	}
-	if c.Exp > m.now().Unix() {
+	if m.now().Unix() >= c.Exp {
 		return nil, ErrExpired
 	}
 
