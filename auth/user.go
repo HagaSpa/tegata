@@ -72,3 +72,34 @@ func (s *UserStore) Authenticate(username string, password string) (string, erro
 	}
 	return "", ErrInvalidCredential
 }
+
+type UserInfo struct {
+	Sub               string `json:"sub"`
+	Name              string `json:"name"`
+	PreferredUsername string `json:"preferred_username"`
+	Email             string `json:"email"`
+}
+
+func (s *UserStore) FindBySub(sub string) *UserInfo {
+	var user UserInfo
+	hasUser := false
+
+	for k, v := range s.users {
+		if v.sub == sub {
+			if hasUser {
+				return nil
+			}
+			user.Sub = v.sub
+			user.Name = v.name
+			user.PreferredUsername = k
+			user.Email = v.email
+			hasUser = true
+		}
+	}
+
+	if !hasUser {
+		return nil
+	}
+
+	return &user
+}
