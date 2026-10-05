@@ -23,6 +23,12 @@ func NewClientStore() *ClientStore {
 					"http://localhost:9999/callback",
 				},
 			},
+			"tegata-rp": {
+				Secret: "rp-secret",
+				RedirectURIs: []string{
+					"http://127.0.0.1:5556/callback",
+				},
+			},
 		},
 	}
 }
