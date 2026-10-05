@@ -31,6 +31,8 @@ func main() {
 		"username",
 		"password",
 		"u-0001",
+		"hagaspa",
+		"justicesparrow13@gmail.com",
 	)
 	if err != nil {
 		log.Fatalf("failed to init user store: %v", err)

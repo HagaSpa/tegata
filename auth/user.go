@@ -17,16 +17,24 @@ const (
 var ErrInvalidCredential = errors.New("invalid credential")
 
 type User struct {
-	sub  string
-	salt []byte
-	hash []byte
+	sub   string
+	salt  []byte
+	hash  []byte
+	name  string
+	email string
 }
 
 type UserStore struct {
 	users map[string]*User
 }
 
-func NewUserStore(seedUsername string, seedPassword string, seedSub string) (*UserStore, error) {
+func NewUserStore(
+	seedUsername string,
+	seedPassword string,
+	seedSub string,
+	seedName string,
+	seedEmail string,
+) (*UserStore, error) {
 	salt := make([]byte, 16)
 	_, err := rand.Read(salt)
 	if err != nil {
@@ -39,9 +47,11 @@ func NewUserStore(seedUsername string, seedPassword string, seedSub string) (*Us
 	return &UserStore{
 		users: map[string]*User{
 			seedUsername: {
-				sub:  seedSub,
-				salt: salt,
-				hash: hash,
+				sub:   seedSub,
+				salt:  salt,
+				hash:  hash,
+				name:  seedName,
+				email: seedEmail,
 			},
 		},
 	}, nil
