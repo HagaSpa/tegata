@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"reflect"
 	"strings"
 	"testing"
@@ -217,7 +218,7 @@ func TestKeyManager_Verify(t *testing.T) {
 			t.Fatalf("Sign() failed: %v", err)
 		}
 		token := jwt.String()
-		if _, err = m.Verify(token); err != ErrExpired {
+		if _, err = m.Verify(token); !errors.Is(err, ErrExpired) {
 			t.Fatalf("Exipired claim is success: %v", err)
 		}
 	})
