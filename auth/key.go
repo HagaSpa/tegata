@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
+	"time"
 )
 
 // JSON Web Key
@@ -27,6 +28,7 @@ type JWKS struct {
 type KeyManager struct {
 	privateKey *rsa.PrivateKey
 	keyID      string
+	now        func() time.Time
 }
 
 func NewKeyManager() (*KeyManager, error) {
@@ -39,6 +41,7 @@ func NewKeyManager() (*KeyManager, error) {
 	return &KeyManager{
 		privateKey: key,
 		keyID:      keyID,
+		now:        time.Now,
 	}, nil
 }
 

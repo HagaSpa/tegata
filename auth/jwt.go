@@ -7,8 +7,12 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
 )
+
+var ErrExpired = errors.New("expired")
 
 type Claim struct {
 	Iss   string `json:"iss"`
@@ -52,6 +56,51 @@ func (m *KeyManager) Sign(claim *Claim) (*JWT, error) {
 		payload:   payload,
 		signature: signature,
 	}, nil
+}
+
+func (m *KeyManager) Verify(token string) (*Claim, error) {
+	sl := strings.Split(token, ".")
+	header := sl[0]
+	payload := sl[1]
+	signature := sl[2]
+
+	hd, err := base64.RawURLEncoding.DecodeString(header)
+	if err != nil {
+		return nil, fmt.Errorf("failed decode header: %w", err)
+	}
+	h := map[string]any{}
+	if err = json.Unmarshal(hd, &h); err != nil {
+		return nil, fmt.Errorf("Unmarshal failed: %w", err)
+	}
+	if h["alg"] != "RS256" {
+		return nil, fmt.Errorf("invalid alg format: %w", err)
+	}
+	if h["kid"] != m.JWKS().Keys[0].Kid {
+		return nil, fmt.Errorf("kid is not KeyManager.GetJWKS().Keys[0].kid")
+	}
+
+	digest := sha256.Sum256([]byte(header + "." + payload))
+	dec, err := base64.RawURLEncoding.DecodeString(signature)
+	if err != nil {
+		return nil, fmt.Errorf("Decode failed: %w", err)
+	}
+	if err = rsa.VerifyPKCS1v15(&m.privateKey.PublicKey, crypto.SHA256, digest[:], dec); err != nil {
+		return nil, fmt.Errorf("Verify failed: %w", err)
+	}
+
+	pd, err := base64.RawStdEncoding.DecodeString(payload)
+	if err != nil {
+		return nil, fmt.Errorf("failed decode payload: %w", err)
+	}
+	c := Claim{}
+	if err = json.Unmarshal(pd, &c); err != nil {
+		return nil, fmt.Errorf("Unmarshal failed: %w", err)
+	}
+	if c.Exp > m.now().Unix() {
+		return nil, ErrExpired
+	}
+
+	return &c, nil
 }
 
 func (j *JWT) String() string {
