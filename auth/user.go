@@ -74,10 +74,10 @@ func (s *UserStore) Authenticate(username string, password string) (string, erro
 }
 
 type UserInfo struct {
-	Sub               string `json:"sub"`
-	Name              string `json:"name"`
-	PreferredUsername string `json:"preferred_username"`
-	Email             string `json:"email"`
+	Sub               string
+	Name              string
+	PreferredUsername string
+	Email             string
 }
 
 func (s *UserStore) FindBySub(sub string) *UserInfo {

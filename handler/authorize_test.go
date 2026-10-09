@@ -109,7 +109,7 @@ func validAuthorizeForm() url.Values {
 
 func newPostHandler(t *testing.T) *AuthorizeHandler {
 	t.Helper()
-	users, err := auth.NewUserStore("username", "password", "u-0001")
+	users, err := auth.NewUserStore("username", "password", "u-0001", "seedName", "user@example.com")
 	if err != nil {
 		t.Fatalf("NewUserStore() failed: %v", err)
 	}
