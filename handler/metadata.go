@@ -20,6 +20,6 @@ func NewMetadataHandler(config *auth.OpenIdConfiguration) *MetadataHandler {
 func (h *MetadataHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(h.config); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		internalError(w)
 	}
 }

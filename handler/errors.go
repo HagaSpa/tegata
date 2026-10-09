@@ -77,3 +77,7 @@ func bearerError(w http.ResponseWriter, code string) {
 	}
 	http.Error(w, "invalid_token", http.StatusUnauthorized)
 }
+
+func internalError(w http.ResponseWriter) {
+	http.Error(w, "internal_server_error", http.StatusInternalServerError)
+}
