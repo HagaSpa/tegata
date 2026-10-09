@@ -65,8 +65,8 @@ func oauthError(
 }
 
 func bearerError(w http.ResponseWriter, code string) {
-	if code == "" {
-		w.Header().Set("WWW-Authenticate", fmt.Sprintf("Bearer error=%s", code))
+	if code != "" {
+		w.Header().Set("WWW-Authenticate", fmt.Sprintf(`Bearer error="%s"`, code))
 	} else {
 		w.Header().Set("WWW-Authenticate", "Bearer")
 	}
