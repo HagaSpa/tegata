@@ -49,7 +49,7 @@ func NewTokenHandler(
 	}
 }
 
-type successResponse struct {
+type tokenResponse struct {
 	AccessToken string `json:"access_token"`
 	TokenType   string `json:"token_type"`
 	ExpiresIn   int64  `json:"expires_in"`
@@ -137,7 +137,7 @@ func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Pragma", "no-cache")
-	b := successResponse{
+	b := tokenResponse{
 		AccessToken: access.String(),
 		TokenType:   "Bearer",
 		ExpiresIn:   int64(tokenTTL.Seconds()),
@@ -150,7 +150,7 @@ func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type errResponse struct {
+type tokenErrResponse struct {
 	Err  string `json:"error"`
 	Desc string `json:"error_description"`
 }
@@ -164,7 +164,7 @@ func tokenError(
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
-	b := errResponse{
+	b := tokenErrResponse{
 		Err:  code,
 		Desc: desc,
 	}
