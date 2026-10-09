@@ -45,9 +45,9 @@ func redirectWith(
 	http.Redirect(w, r, u.String(), http.StatusFound)
 }
 
-type oauthErrResponse struct {
-	Err  string `json:"error"`
-	Desc string `json:"error_description"`
+type oauthErrorResponse struct {
+	Error       string `json:"error"`
+	Description string `json:"error_description"`
 }
 
 func oauthError(
@@ -57,9 +57,9 @@ func oauthError(
 	desc string,
 ) {
 	w.Header().Set("Cache-Control", "no-store")
-	v := oauthErrResponse{
-		Err:  code,
-		Desc: desc,
+	v := oauthErrorResponse{
+		Error:       code,
+		Description: desc,
 	}
 	writeJSON(w, status, v)
 }
@@ -78,12 +78,12 @@ func internalError(w http.ResponseWriter) {
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", "application/json")
 	b, err := json.Marshal(v)
 	if err != nil {
 		internalError(w)
 		return
 	}
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	w.Write(b)
 }

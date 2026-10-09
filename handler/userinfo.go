@@ -85,5 +85,6 @@ func (h *UserInfoHandler) Get(w http.ResponseWriter, r *http.Request) {
 		v.Email = user.Email
 		v.EmailVerified = new(true)
 	}
+	w.Header().Set("Cache-Control", "no-store")
 	writeJSON(w, http.StatusOK, v)
 }
