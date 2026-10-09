@@ -97,7 +97,7 @@ func (h *UserInfoHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(userInfo); err != nil {
-		tokenError(w, 500, "server_error", "error occured")
+		oauthError(w, 500, "server_error", "error occured")
 		return
 	}
 }

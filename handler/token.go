@@ -59,7 +59,7 @@ type tokenResponse struct {
 
 func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
-		tokenError(w, 400, "invalid_request", "parse failed")
+		oauthError(w, 400, "invalid_request", "parse failed")
 		return
 	}
 
@@ -72,31 +72,31 @@ func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 		if ok {
 			w.Header().Set("WWW-Authenticate", "Basic realm=\"tegata\"")
 		}
-		tokenError(w, 401, "invalid_client", "client_id or client_secret is invalid")
+		oauthError(w, 401, "invalid_client", "client_id or client_secret is invalid")
 		return
 	}
 
 	if r.PostFormValue("grant_type") != "authorization_code" {
-		tokenError(w, 400, "unsupported_grant_type", "grant_type is unsupported")
+		oauthError(w, 400, "unsupported_grant_type", "grant_type is unsupported")
 		return
 	}
 
 	code, err := h.codes.Consume(r.PostFormValue("code"))
 	if err != nil {
 		if errors.Is(err, auth.ErrInvalidCode) {
-			tokenError(w, 400, "invalid_grant", "code is invalid")
+			oauthError(w, 400, "invalid_grant", "code is invalid")
 			return
 		} else {
-			tokenError(w, 500, "server_error", "error occured")
+			oauthError(w, 500, "server_error", "error occured")
 			return
 		}
 	}
 	if code.ClientID != user {
-		tokenError(w, 400, "invalid_grant", "client_id is invalid")
+		oauthError(w, 400, "invalid_grant", "client_id is invalid")
 		return
 	}
 	if code.RedirectURI != r.PostFormValue("redirect_uri") {
-		tokenError(w, 400, "invalid_grant", "redirect_uri is invalid")
+		oauthError(w, 400, "invalid_grant", "redirect_uri is invalid")
 		return
 	}
 
@@ -105,7 +105,7 @@ func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 	sum := sha256.Sum256([]byte(v))
 	got := base64.RawURLEncoding.EncodeToString(sum[:])
 	if subtle.ConstantTimeCompare([]byte(got), []byte(code.CodeChallenge)) != 1 {
-		tokenError(w, 400, "invalid_grant", "code_verifier is invalid")
+		oauthError(w, 400, "invalid_grant", "code_verifier is invalid")
 		return
 	}
 
@@ -118,7 +118,7 @@ func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 		Nonce: code.Nonce,
 	})
 	if err != nil {
-		tokenError(w, 500, "server_error", "error occured")
+		oauthError(w, 500, "server_error", "error occured")
 		return
 	}
 	access, err := h.signer.Sign(&auth.Claim{
@@ -130,7 +130,7 @@ func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 		Scope: code.Scope,
 	})
 	if err != nil {
-		tokenError(w, 500, "server_error", "error occured")
+		oauthError(w, 500, "server_error", "error occured")
 		return
 	}
 
@@ -145,31 +145,7 @@ func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 		Scope:       code.Scope,
 	}
 	if err := json.NewEncoder(w).Encode(b); err != nil {
-		tokenError(w, 500, "server_error", "error occured")
-		return
-	}
-}
-
-type tokenErrResponse struct {
-	Err  string `json:"error"`
-	Desc string `json:"error_description"`
-}
-
-func tokenError(
-	w http.ResponseWriter,
-	status int,
-	code string,
-	desc string,
-) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "no-store")
-	w.WriteHeader(status)
-	b := tokenErrResponse{
-		Err:  code,
-		Desc: desc,
-	}
-	if err := json.NewEncoder(w).Encode(b); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		oauthError(w, 500, "server_error", "error occured")
 		return
 	}
 }
