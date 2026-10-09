@@ -14,7 +14,7 @@ type Verifier interface {
 }
 
 type Finder interface {
-	FindBySub(sub string) *auth.UserInfo
+	FindBySub(sub string) *auth.Profile
 }
 
 type UserInfoHandler struct {
@@ -35,7 +35,7 @@ func NewUserInfofHandler(
 	}
 }
 
-type userInfo struct {
+type userInfoResponse struct {
 	Sub               string `json:"sub"`
 	Name              string `json:"name,omitempty"`
 	PreferredUsername string `json:"preferred_username,omitempty"`
@@ -85,7 +85,7 @@ func (h *UserInfoHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userInfo := &userInfo{}
+	userInfo := &userInfoResponse{}
 	userInfo.Sub = user.Sub
 	if slices.Contains(strings.Fields(claim.Scope), "profile") {
 		userInfo.Name = user.Name

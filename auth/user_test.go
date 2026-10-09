@@ -14,7 +14,7 @@ func TestUserStore_FindBySub(t *testing.T) {
 		seedName     string
 		seedEmail    string
 		sub          string
-		want         *UserInfo
+		want         *Profile
 	}{
 		{
 			name:         "sub が存在する場合は user が取得できる",
@@ -24,7 +24,7 @@ func TestUserStore_FindBySub(t *testing.T) {
 			seedName:     "name",
 			seedEmail:    "haga@gmail.com",
 			sub:          "sub",
-			want: &UserInfo{
+			want: &Profile{
 				Sub:               "sub",
 				Name:              "name",
 				PreferredUsername: "username",

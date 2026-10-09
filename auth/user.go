@@ -16,7 +16,7 @@ const (
 
 var ErrInvalidCredential = errors.New("invalid credential")
 
-type User struct {
+type user struct {
 	sub   string
 	salt  []byte
 	hash  []byte
@@ -25,7 +25,7 @@ type User struct {
 }
 
 type UserStore struct {
-	users map[string]*User
+	users map[string]*user
 }
 
 func NewUserStore(
@@ -45,7 +45,7 @@ func NewUserStore(
 		return nil, fmt.Errorf("derive key: %w", err)
 	}
 	return &UserStore{
-		users: map[string]*User{
+		users: map[string]*user{
 			seedUsername: {
 				sub:   seedSub,
 				salt:  salt,
@@ -73,15 +73,15 @@ func (s *UserStore) Authenticate(username string, password string) (string, erro
 	return "", ErrInvalidCredential
 }
 
-type UserInfo struct {
+type Profile struct {
 	Sub               string
 	Name              string
 	PreferredUsername string
 	Email             string
 }
 
-func (s *UserStore) FindBySub(sub string) *UserInfo {
-	var user UserInfo
+func (s *UserStore) FindBySub(sub string) *Profile {
+	var user Profile
 	hasUser := false
 
 	for k, v := range s.users {
