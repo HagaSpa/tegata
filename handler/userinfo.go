@@ -43,45 +43,36 @@ type userInfoResponse struct {
 	EmailVerified     *bool  `json:"email_verified,omitempty"`
 }
 
-func authError(w http.ResponseWriter) {
-	w.Header().Set("WWW-Authenticate", "Bearer error=\"invalid_token\"")
-	http.Error(w, "invalid_token", http.StatusUnauthorized)
-}
-
-func notExistsAuthError(w http.ResponseWriter) {
-	w.Header().Set("WWW-Authenticate", "Bearer")
-	http.Error(w, "invalid_token", http.StatusUnauthorized)
-}
-
 func (h *UserInfoHandler) Get(w http.ResponseWriter, r *http.Request) {
 	ah := r.Header.Get("Authorization")
 	if ah == "" || len(strings.Fields(ah)) != 2 {
-		notExistsAuthError(w)
+		bearerError(w, "")
 		return
 	}
 	sl := strings.Fields(ah)
 	if !strings.EqualFold(sl[0], "Bearer") {
-		authError(w)
+		bearerError(w, "invalid_token")
 		return
 	}
 
 	claim, err := h.verifier.Verify(sl[1])
 	if err != nil {
-		authError(w)
+		bearerError(w, "invalid_token")
 		return
 	}
 	if claim.Iss != h.issuer {
-		authError(w)
+		bearerError(w, "invalid_token")
 		return
 	}
 	if claim.Aud != h.issuer+"/userinfo" {
-		authError(w)
+		bearerError(w, "invalid_token")
 		return
+
 	}
 
 	user := h.finder.FindBySub(claim.Sub)
 	if user == nil {
-		authError(w)
+		bearerError(w, "invalid_token")
 		return
 	}
 

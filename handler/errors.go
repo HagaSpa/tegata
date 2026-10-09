@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 )
@@ -66,4 +67,13 @@ func oauthError(
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+}
+
+func bearerError(w http.ResponseWriter, code string) {
+	if code == "" {
+		w.Header().Set("WWW-Authenticate", fmt.Sprintf("Bearer error=%s", code))
+	} else {
+		w.Header().Set("WWW-Authenticate", "Bearer")
+	}
+	http.Error(w, "invalid_token", http.StatusUnauthorized)
 }
