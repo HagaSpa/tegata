@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/HagaSpa/tegata/auth"
@@ -22,9 +21,5 @@ func NewJWKHandler(provider JWKSProvider) *JWKHandler {
 }
 
 func (h *JWKHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	jwks := h.provider.JWKS()
-	if err := json.NewEncoder(w).Encode(jwks); err != nil {
-		internalError(w)
-	}
+	writeJSON(w, http.StatusOK, h.provider.JWKS())
 }

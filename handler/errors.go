@@ -56,17 +56,12 @@ func oauthError(
 	code string,
 	desc string,
 ) {
-	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
-	w.WriteHeader(status)
-	b := oauthErrResponse{
+	v := oauthErrResponse{
 		Err:  code,
 		Desc: desc,
 	}
-	if err := json.NewEncoder(w).Encode(b); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	writeJSON(w, status, v)
 }
 
 func bearerError(w http.ResponseWriter, code string) {
@@ -80,4 +75,15 @@ func bearerError(w http.ResponseWriter, code string) {
 
 func internalError(w http.ResponseWriter) {
 	http.Error(w, "internal_server_error", http.StatusInternalServerError)
+}
+
+func writeJSON(w http.ResponseWriter, status int, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	b, err := json.Marshal(v)
+	if err != nil {
+		internalError(w)
+		return
+	}
+	w.WriteHeader(status)
+	w.Write(b)
 }

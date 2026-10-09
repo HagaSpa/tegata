@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/HagaSpa/tegata/auth"
@@ -18,8 +17,5 @@ func NewMetadataHandler(config *auth.OpenIdConfiguration) *MetadataHandler {
 }
 
 func (h *MetadataHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(h.config); err != nil {
-		internalError(w)
-	}
+	writeJSON(w, http.StatusOK, h.config)
 }

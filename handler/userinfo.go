@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"net/http"
 	"slices"
 	"strings"
@@ -76,19 +75,15 @@ func (h *UserInfoHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userInfo := &userInfoResponse{}
-	userInfo.Sub = user.Sub
+	v := &userInfoResponse{}
+	v.Sub = user.Sub
 	if slices.Contains(strings.Fields(claim.Scope), "profile") {
-		userInfo.Name = user.Name
-		userInfo.PreferredUsername = user.PreferredUsername
+		v.Name = user.Name
+		v.PreferredUsername = user.PreferredUsername
 	}
 	if slices.Contains(strings.Fields(claim.Scope), "email") {
-		userInfo.Email = user.Email
-		userInfo.EmailVerified = new(true)
+		v.Email = user.Email
+		v.EmailVerified = new(true)
 	}
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(userInfo); err != nil {
-		oauthError(w, 500, "server_error", "error occured")
-		return
-	}
+	writeJSON(w, http.StatusOK, v)
 }

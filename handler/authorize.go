@@ -115,7 +115,7 @@ func (h *AuthorizeHandler) Post(w http.ResponseWriter, r *http.Request) {
 func (h *AuthorizeHandler) render(w http.ResponseWriter, req *authorizeRequest) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := h.file.Execute(w, req); err != nil {
-		http.Error(w, "failed to render login page", http.StatusInternalServerError)
+		internalError(w)
 	}
 }
 

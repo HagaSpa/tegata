@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"time"
@@ -101,8 +100,7 @@ func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 	}
 
 	now := h.now()
-	v := r.PostFormValue("code_verifier")
-	sum := sha256.Sum256([]byte(v))
+	sum := sha256.Sum256([]byte(r.PostFormValue("code_verifier")))
 	got := base64.RawURLEncoding.EncodeToString(sum[:])
 	if subtle.ConstantTimeCompare([]byte(got), []byte(code.CodeChallenge)) != 1 {
 		oauthError(w, 400, "invalid_grant", "code_verifier is invalid")
@@ -134,18 +132,14 @@ func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Pragma", "no-cache")
-	b := tokenResponse{
+	v := tokenResponse{
 		AccessToken: access.String(),
 		TokenType:   "Bearer",
 		ExpiresIn:   int64(tokenTTL.Seconds()),
 		IDToken:     idToken.String(),
 		Scope:       code.Scope,
 	}
-	if err := json.NewEncoder(w).Encode(b); err != nil {
-		oauthError(w, 500, "server_error", "error occured")
-		return
-	}
+	writeJSON(w, http.StatusOK, v)
 }
