@@ -13,19 +13,19 @@ type Verifier interface {
 	Verify(token string) (*auth.Claim, error)
 }
 
-type Finder interface {
+type ProfileFinder interface {
 	FindBySub(sub string) *auth.Profile
 }
 
 type UserInfoHandler struct {
 	verifier Verifier
-	finder   Finder
+	finder   ProfileFinder
 	issuer   string
 }
 
 func NewUserInfofHandler(
 	verifier Verifier,
-	finder Finder,
+	finder ProfileFinder,
 	issuer string,
 ) *UserInfoHandler {
 	return &UserInfoHandler{
