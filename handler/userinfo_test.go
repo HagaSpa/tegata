@@ -63,6 +63,18 @@ func TestUserInfoHandler_Get_Errors(t *testing.T) {
 	expiredClaims.Exp = now.Add(-time.Hour).Unix()
 	expired := signToken(t, km, expiredClaims)
 
+	invAudClaims := accessClaims("openid")
+	invAudClaims.Aud = "tegata-sample"
+	invAud := signToken(t, km, invAudClaims)
+
+	invIssClaims := accessClaims("openid")
+	invIssClaims.Iss = "http://evil"
+	invIss := signToken(t, km, invIssClaims)
+
+	invSubClaims := accessClaims("openid")
+	invSubClaims.Sub = "u-9999"
+	invSub := signToken(t, km, invSubClaims)
+
 	cases := []struct {
 		name         string
 		authoriation string
@@ -73,6 +85,9 @@ func TestUserInfoHandler_Get_Errors(t *testing.T) {
 		{"schema 違い", "Basic dgVzdA==", 401, `Bearer error="invalid_token"`},
 		{"形になっていない", "Bearer x", 401, `Bearer error="invalid_token"`},
 		{"期限切れ", "Bearer " + expired, 401, `Bearer error="invalid_token"`},
+		{"Aud が異なる", "Bearer " + invAud, 401, `Bearer error="invalid_token"`},
+		{"Iss が異なる", "Bearer " + invIss, 401, `Bearer error="invalid_token"`},
+		{"Sub が異なる", "Bearer " + invSub, 401, `Bearer error="invalid_token"`},
 	}
 
 	for _, tc := range cases {
