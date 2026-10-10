@@ -83,7 +83,7 @@ func TestUserInfoHandler_Get_Errors(t *testing.T) {
 		wantWWWWAuth string
 	}{
 		{"ヘッダなし", "", 401, "Bearer"},
-		{"schema 違い", "Basic dgVzdA==", 401, `Bearer error="invalid_token"`},
+		{"schema 違い", "Basic dgVzdA==", 401, `Bearer`},
 		{"形になっていない", "Bearer x", 401, `Bearer error="invalid_token"`},
 		{"期限切れ", "Bearer " + expired, 401, `Bearer error="invalid_token"`},
 		{"Aud が異なる", "Bearer " + invAud, 401, `Bearer error="invalid_token"`},

@@ -50,7 +50,7 @@ func (h *UserInfoHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 	sl := strings.Fields(ah)
 	if !strings.EqualFold(sl[0], "Bearer") {
-		bearerError(w, "invalid_token")
+		bearerError(w, "")
 		return
 	}
 
