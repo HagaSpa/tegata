@@ -1,2 +1,10 @@
 [tools]
 go = "1.27.1"
+
+[tasks.test]
+description = "Run all tests"
+run = "go test ./..."
+
+[tasks.race]
+description = "Run all tests with the race detector"
+run = "go test -race ./..."
