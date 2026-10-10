@@ -7,3 +7,16 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8080:8080"
+      - "5556:5556"
+  rp:
+    build:
+      context: .
+      dockerfile: Dockerfile.rp
+    network_mode: "service:server"
+    restart: on-failure
+    depends_on:
+      - server
+    environment:
+      - ISSUER=http://localhost:8080
+      - LISTEN=0.0.0.0:5556
+      - REDIRECT_URL=http://127.0.0.1:5556/callback
