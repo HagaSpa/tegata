@@ -8,3 +8,11 @@ run = "go test ./..."
 [tasks.race]
 description = "Run all tests with the race detector"
 run = "go test -race ./..."
+
+[tasks.start]
+description = "Build and start tegata and the RP (open http://127.0.0.1:5556/)"
+run = "docker compose up --build"
+
+[tasks.stop]
+description = "Stop and remove the compose containers"
+run = "docker compose down"
