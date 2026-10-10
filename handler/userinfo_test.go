@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -19,7 +20,7 @@ func newUserInfoHandler(t *testing.T) (*UserInfoHandler, *auth.KeyManager) {
 	if err != nil {
 		t.Fatalf("NewUserStore() failed: %v", err)
 	}
-	return NewUserInfofHandler(km, us, "testIssuer"), km
+	return NewUserInfofHandler(km, us, testIssuer), km
 }
 
 func signToken(t *testing.T, km *auth.KeyManager, claim *auth.Claim) string {
@@ -94,12 +95,72 @@ func TestUserInfoHandler_Get_Errors(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			rec := getUserInfo(h, tc.authoriation)
 			if rec.Code != tc.wantStatus {
-				t.Fatalf("status = %d, want %d (body %q)", rec.Code, tc.wantStatus, rec.Body.String())
+				t.Errorf("status = %d, want %d (body %q)", rec.Code, tc.wantStatus, rec.Body.String())
 			}
 			wwwAuth := rec.Header().Get("WWW-Authenticate")
 			if wwwAuth != tc.wantWWWWAuth {
-				t.Fatalf("rec.header WWW-Authenticate = %s, wand = %s", wwwAuth, tc.wantWWWWAuth)
+				t.Errorf("rec.header WWW-Authenticate = %s, wand = %s", wwwAuth, tc.wantWWWWAuth)
 			}
 		})
 	}
+}
+
+func TestUserInfoHandler_Get_Success(t *testing.T) {
+	h, km := newUserInfoHandler(t)
+	valid := signToken(t, km, accessClaims("openid"))
+	full := signToken(t, km, accessClaims("openid profile email"))
+
+	t.Run("openid のみ", func(t *testing.T) {
+		rec := getUserInfo(h, "Bearer "+valid)
+		if rec.Code != 200 {
+			t.Errorf("status = %d, want %d (body %q)", rec.Code, 200, rec.Body.String())
+		}
+
+		m := map[string]any{}
+		if err := json.Unmarshal(rec.Body.Bytes(), &m); err != nil {
+			t.Fatalf("Decode failed: %v (Body: %s)", err, rec.Body.String())
+		}
+		if m["sub"] != "u-0001" {
+			t.Errorf("valid.sub = %s, want %s", m["sub"], "u-0001")
+		}
+		if m["name"] != nil {
+			t.Errorf("valid.name = %s", m["name"])
+		}
+		if m["preferred_username"] != nil {
+			t.Errorf("valid.preferred_username = %s", m["preferred_username"])
+		}
+		if m["email"] != nil {
+			t.Errorf("valid.email = %s", m["email"])
+		}
+		if m["email_verified"] != nil {
+			t.Errorf("valid.email_verified = %s", m["email_verified"])
+		}
+	})
+
+	t.Run("openid profile email", func(t *testing.T) {
+		rec := getUserInfo(h, "Bearer "+full)
+		if rec.Code != 200 {
+			t.Errorf("status = %d, want %d (body %q)", rec.Code, 200, rec.Body.String())
+		}
+
+		m := map[string]any{}
+		if err := json.Unmarshal(rec.Body.Bytes(), &m); err != nil {
+			t.Fatalf("Decode failed: %v (Body: %s)", err, rec.Body.String())
+		}
+		if m["sub"] != "u-0001" {
+			t.Errorf("valid.sub = %s, want %s", m["sub"], "u-0001")
+		}
+		if m["name"] != "Tegata User" {
+			t.Errorf("valid.name = %s", m["name"])
+		}
+		if m["preferred_username"] != "username" {
+			t.Errorf("valid.preferred_username = %s", m["preferred_username"])
+		}
+		if m["email"] != "user@example.com" {
+			t.Errorf("valid.email = %s", m["email"])
+		}
+		if m["email_verified"] != true {
+			t.Errorf("valid.email_verified = %s", m["email_verified"])
+		}
+	})
 }
