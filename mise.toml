@@ -16,3 +16,11 @@ run = "docker compose up --build"
 [tasks.stop]
 description = "Stop and remove the compose containers"
 run = "docker compose down"
+
+[tasks.serve]
+description = "Run tegata locally with go run (http://localhost:8080)"
+run = "go run ."
+
+[tasks.smoke]
+description = "Check /authorize behavior against a running server (start it with mise serve)"
+run = "./scripts/smoke-authorize.sh"
