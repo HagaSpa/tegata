@@ -22,5 +22,5 @@ description = "Run tegata locally with go run (http://localhost:8080)"
 run = "go run ."
 
 [tasks.smoke]
-description = "Check /authorize behavior against a running server (start it with mise serve)"
+description = "Check /authorize behavior against a running OpenID Provider (start it with mise serve)"
 run = "./scripts/smoke-authorize.sh"

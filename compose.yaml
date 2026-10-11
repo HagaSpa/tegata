@@ -1,5 +1,5 @@
 services:
-  server:
+  openid-provider:
     environment:
       - TZ=Asia/Tokyo
     build:
@@ -8,14 +8,14 @@ services:
     ports:
       - "8080:8080"
       - "5556:5556"
-  rp:
+  relying-party:
     build:
       context: .
       dockerfile: Dockerfile.rp
-    network_mode: "service:server"
+    network_mode: "service:openid-provider"
     restart: on-failure
     depends_on:
-      - server
+      - openid-provider
     environment:
       - ISSUER=http://localhost:8080
       - LISTEN=0.0.0.0:5556
