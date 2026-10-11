@@ -7,6 +7,8 @@ import (
 	"net/url"
 	"slices"
 	"strings"
+
+	"github.com/HagaSpa/tegata/auth"
 )
 
 //go:embed index.html
@@ -18,6 +20,12 @@ type RedirectURIValidator interface {
 
 type UserAuthenticator interface {
 	Authenticate(username string, password string) (string, error)
+}
+
+type AuthorizeRequestOperator interface {
+	Save(req *auth.AuthorizeRequest) (string, error)
+	Find(key string) (*auth.AuthorizeRequest, error)
+	FindAndDelete(key string) (*auth.AuthorizeRequest, error)
 }
 
 type CodeIssuer interface {
@@ -36,12 +44,14 @@ type AuthorizeHandler struct {
 	user    UserAuthenticator
 	code    CodeIssuer
 	file    *template.Template
+	authReq AuthorizeRequestOperator
 }
 
 func NewAuthorizeHandler(
 	clients RedirectURIValidator,
 	user UserAuthenticator,
 	code CodeIssuer,
+	authReq AuthorizeRequestOperator,
 ) *AuthorizeHandler {
 	f := template.Must(template.ParseFS(htmlFS, "index.html"))
 	return &AuthorizeHandler{
@@ -49,6 +59,7 @@ func NewAuthorizeHandler(
 		user:    user,
 		code:    code,
 		file:    f,
+		authReq: authReq,
 	}
 }
 
@@ -58,11 +69,19 @@ func (h *AuthorizeHandler) Get(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid client_id or redirect_uri", http.StatusBadRequest)
 		return
 	}
-	if code, desc := req.validate(); code != "" {
+	if code, desc := validateAuthorizeRequest(req); code != "" {
 		redirectError(w, r, req.RedirectURI, code, desc, req.State)
 		return
 	}
-	h.render(w, req)
+	id, err := h.authReq.Save(req)
+	if err != nil {
+		redirectError(w, r, req.RedirectURI, "server_error", "faild to save authorize request", req.State)
+		return
+	}
+	param := templateParam{
+		ID: id,
+	}
+	h.render(w, &param)
 }
 
 func (h *AuthorizeHandler) Post(w http.ResponseWriter, r *http.Request) {
@@ -71,30 +90,45 @@ func (h *AuthorizeHandler) Post(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid values in form", http.StatusBadRequest)
 		return
 	}
-	req := parseAuthorizeRequest(r.PostForm)
+
+	id := r.PostFormValue("id")
+	req, err := h.authReq.Find(id)
+	if err != nil {
+		http.Error(w, "faild to get authorize request", http.StatusBadRequest)
+		return
+	}
+
 	if !h.clients.ValidateRedirectURI(req.ClientID, req.RedirectURI) {
 		http.Error(w, "invalid client_id or redirect_uri", http.StatusBadRequest)
 		return
 	}
-	if code, desc := req.validate(); code != "" {
-		redirectError(w, r, req.RedirectURI, code, desc, req.State)
-		return
-	}
-	// 認証
+
 	sub, err := h.user.Authenticate(r.PostFormValue("username"), r.PostFormValue("password"))
 	if err != nil {
-		req.Error = "invalid username or password"
-		h.render(w, req)
+		param := templateParam{
+			ID:    id,
+			Error: "invalid username or password",
+		}
+		h.render(w, &param)
 		return
 	}
-	// 判断
+
 	action := r.PostFormValue("action")
+	if action != "deny" && action != "approve" {
+		http.Error(w, "invalid action result", http.StatusBadRequest)
+		return
+	}
+
+	req, err = h.authReq.FindAndDelete(id)
+	if err != nil {
+		http.Error(w, "failed to get authorize request", http.StatusBadRequest)
+		return
+	}
+
 	switch action {
 	case "deny":
 		redirectError(w, r, req.RedirectURI, "access_denied", "the user denied the request", req.State)
-		return
 	case "approve":
-		// approve のみ発行
 		code, err := h.code.Issue(req.ClientID, req.RedirectURI, req.Scope, req.CodeChallenge, req.Nonce, sub)
 		if err != nil {
 			redirectError(w, r, req.RedirectURI, "server_error", "failed to issue code", req.State)
@@ -106,33 +140,23 @@ func (h *AuthorizeHandler) Post(w http.ResponseWriter, r *http.Request) {
 			values.Set("state", req.State)
 		}
 		redirectWith(w, r, req.RedirectURI, values)
-	default:
-		http.Error(w, "unknown action result", http.StatusBadRequest)
-		return
 	}
 }
 
-func (h *AuthorizeHandler) render(w http.ResponseWriter, req *authorizeRequest) {
+type templateParam struct {
+	ID    string
+	Error string
+}
+
+func (h *AuthorizeHandler) render(w http.ResponseWriter, p *templateParam) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := h.file.Execute(w, req); err != nil {
+	if err := h.file.Execute(w, p); err != nil {
 		internalError(w)
 	}
 }
 
-type authorizeRequest struct {
-	ClientID            string
-	RedirectURI         string
-	ResponseType        string
-	Scope               string
-	State               string
-	Nonce               string
-	CodeChallenge       string
-	CodeChallengeMethod string
-	Error               string
-}
-
-func parseAuthorizeRequest(v url.Values) *authorizeRequest {
-	return &authorizeRequest{
+func parseAuthorizeRequest(v url.Values) *auth.AuthorizeRequest {
+	return &auth.AuthorizeRequest{
 		ClientID:            v.Get("client_id"),
 		RedirectURI:         v.Get("redirect_uri"),
 		ResponseType:        v.Get("response_type"),
@@ -144,7 +168,7 @@ func parseAuthorizeRequest(v url.Values) *authorizeRequest {
 	}
 }
 
-func (r *authorizeRequest) validate() (string, string) {
+func validateAuthorizeRequest(r *auth.AuthorizeRequest) (string, string) {
 	if r.ResponseType != "code" {
 		return "unsupported_response_type", "response_type needs code"
 	}

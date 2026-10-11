@@ -39,10 +39,11 @@ func main() {
 	}
 
 	co := auth.NewCodeStore()
+	ar := auth.NewAuthorizeRequestStore()
 
 	jwksHandler := handler.NewJWKHandler(km)
 	metadataHandler := handler.NewMetadataHandler(config)
-	authHandler := handler.NewAuthorizeHandler(cl, u, co)
+	authHandler := handler.NewAuthorizeHandler(cl, u, co, ar)
 	tokenHandler := handler.NewTokenHandler(cl, co, km, issuer)
 	useinfoHandler := handler.NewUserInfofHandler(km, u, issuer)
 
