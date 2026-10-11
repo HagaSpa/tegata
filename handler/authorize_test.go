@@ -4,11 +4,121 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/HagaSpa/tegata/auth"
 )
+
+const testState = "state-1"
+
+var hiddenIDPattern = regexp.MustCompile(`name="id" value="([A-Za-z0-9_-]{43})"`)
+
+func newAuthorizeHandler(t *testing.T) (*AuthorizeHandler, *auth.AuthorizeRequestStore, *auth.CodeStore) {
+	t.Helper()
+	cl := auth.NewClientStore()
+	u, err := auth.NewUserStore(
+		"username",
+		"password",
+		"u-0001",
+		"hagaspa",
+		"justicesparrow13@gmail.com",
+	)
+	if err != nil {
+		t.Fatal("failed initilize")
+	}
+	co := auth.NewCodeStore()
+	ar := auth.NewAuthorizeRequestStore()
+	h := NewAuthorizeHandler(cl, u, co, ar)
+	return h, ar, co
+}
+
+func validAuthorizeQuery() url.Values {
+	q := url.Values{}
+	q.Set("client_id", "tegata-sample")
+	q.Set("redirect_uri", "http://localhost:9999/callback")
+	q.Set("response_type", "code")
+	q.Set("scope", "openid")
+	q.Set("state", testState)
+	q.Set("nonce", "n")
+	q.Set("code_challenge", "x")
+	q.Set("code_challenge_method", "S256")
+	return q
+}
+
+func saveRequest(t *testing.T, store *auth.AuthorizeRequestStore, mutate func(r *auth.AuthorizeRequest)) string {
+	t.Helper()
+	req := parseAuthorizeRequest(validAuthorizeQuery())
+	if mutate != nil {
+		mutate(req)
+	}
+	id, err := store.Save(req)
+	if err != nil {
+		t.Fatalf("Save() failed: %v", err)
+	}
+	return id
+}
+
+func loginForm(id string) url.Values {
+	f := url.Values{}
+	f.Set("id", id)
+	f.Set("username", "username")
+	f.Set("password", "password")
+	f.Set("action", "approve")
+	return f
+}
+
+func getAuthorize(h *AuthorizeHandler, q url.Values) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(http.MethodGet, "/authorize?"+q.Encode(), nil)
+	rec := httptest.NewRecorder()
+	h.Get(rec, req)
+	return rec
+}
+
+func postAuthorize(h *AuthorizeHandler, f url.Values) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(http.MethodPost, "/authorize", strings.NewReader(f.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	h.Post(rec, req)
+	return rec
+}
+
+func idFromBody(t *testing.T, body string) string {
+	t.Helper()
+	m := hiddenIDPattern.FindStringSubmatch(body)
+	if m == nil {
+		t.Fatalf("body does not carry id as hidden input: %q", body)
+	}
+	return m[1]
+}
+
+func redirectQuery(t *testing.T, rec *httptest.ResponseRecorder) url.Values {
+	t.Helper()
+	if rec.Code != http.StatusFound {
+		t.Fatalf("status = %d, want 302 (body %q)", rec.Code, rec.Body.String())
+	}
+	loc, err := url.Parse(rec.Header().Get("Location"))
+	if err != nil {
+		t.Fatalf("Location %q is not a URL: %v", rec.Header().Get("Location"), err)
+	}
+	q := loc.Query()
+	loc.RawQuery = ""
+	if got, want := loc.String(), "http://localhost:9999/callback"; got != want {
+		t.Errorf("redirect target = %q, want %q", got, want)
+	}
+	return q
+}
+
+func assertBadRequest(t *testing.T, rec *httptest.ResponseRecorder) {
+	t.Helper()
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400 (body %q)", rec.Code, rec.Body.String())
+	}
+	if loc := rec.Header().Get("Location"); loc != "" {
+		t.Errorf("Location = %q, want empty (must not redirect)", loc)
+	}
+}
 
 func TestAuthorizeHandler_Get(t *testing.T) {
 	tests := []struct {
@@ -28,100 +138,72 @@ func TestAuthorizeHandler_Get(t *testing.T) {
 		{"state なしで失敗", func(q url.Values) { q.Del("state"); q.Del("code_challenge") }, http.StatusFound, "invalid_request"},
 	}
 
-	h := NewAuthorizeHandler(auth.NewClientStore(), nil, nil)
+	h, _, _ := newAuthorizeHandler(t)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			q := validAuthorizeQuery()
 			if tt.mutate != nil {
 				tt.mutate(q)
 			}
-			req := httptest.NewRequest(http.MethodGet, "/authorize?"+q.Encode(), nil)
-			rec := httptest.NewRecorder()
-			h.Get(rec, req)
+			rec := getAuthorize(h, q)
 			if rec.Code != tt.wantStatus {
 				t.Fatalf("status %d, want %d", rec.Code, tt.wantStatus)
 			}
-			location := rec.Header().Get("Location")
 			switch tt.wantStatus {
 			case http.StatusOK:
 				body := rec.Body.String()
 				if !strings.Contains(body, "<form") {
 					t.Errorf("body does not contain a form: %q", body)
 				}
-				if want := `name="state" value="abc"`; !strings.Contains(body, want) {
-					t.Errorf("body does not carry state as hidden input: %q", body)
+				idFromBody(t, body)
+				if strings.Count(body, `type="hidden"`) != 1 {
+					t.Errorf("body must carry exactly one hidden input: %q", body)
+				}
+				if strings.Contains(body, `name="state"`) || strings.Contains(body, testState) {
+					t.Errorf("body must not carry the request parameters: %q", body)
 				}
 				if strings.Contains(body, "invalid username or password") {
 					t.Errorf("GET must not show an error message: %q", body)
 				}
 			case http.StatusBadRequest:
-				if location != "" {
-					t.Errorf("Location = %q, want empty (must not redirect)", location)
-				}
+				assertBadRequest(t, rec)
 			case http.StatusFound:
-				loc, err := url.Parse(location)
-				if err != nil {
-					t.Fatalf("Location %q is not a URL: %v", location, err)
-				}
-				if got := loc.Query().Get("error"); got != tt.wantError {
+				lq := redirectQuery(t, rec)
+				if got := lq.Get("error"); got != tt.wantError {
 					t.Errorf("error = %q, want %q", got, tt.wantError)
 				}
-				if loc.Query().Get("error_description") == "" {
+				if lq.Get("error_description") == "" {
 					t.Errorf("error_description is empty")
 				}
-				if want := q.Get("state"); want != "" {
-					if got := loc.Query().Get("state"); got != want {
-						t.Errorf("state = %q, want %q", got, want)
-					}
+				if want := q.Get("state"); want != "" && lq.Get("state") != want {
+					t.Errorf("state = %q, want %q", lq.Get("state"), want)
 				}
-				if q.Get("state") == "" && loc.Query().Has("state") {
-					t.Errorf("Location %q must not contain state", location)
-				}
-				loc.RawQuery = ""
-				if got := loc.String(); got != q.Get("redirect_uri") {
-					t.Errorf("redirect target = %q, want %q", got, q.Get("redirect_uri"))
+				if q.Get("state") == "" && lq.Has("state") {
+					t.Errorf("Location must not contain state: %v", lq)
 				}
 			}
 		})
 	}
 }
 
-func validAuthorizeQuery() url.Values {
-	q := url.Values{}
-	q.Set("client_id", "tegata-sample")
-	q.Set("redirect_uri", "http://localhost:9999/callback")
-	q.Set("response_type", "code")
-	q.Set("scope", "openid")
-	q.Set("state", "abc")
-	q.Set("nonce", "n")
-	q.Set("code_challenge", "x")
-	q.Set("code_challenge_method", "S256")
-	return q
-}
+func TestAuthorizeHandler_Get_SavesRequest(t *testing.T) {
+	h, store, _ := newAuthorizeHandler(t)
+	q := validAuthorizeQuery()
 
-func validAuthorizeForm() url.Values {
-	f := validAuthorizeQuery()
-	f.Set("username", "username")
-	f.Set("password", "password")
-	f.Set("action", "approve")
-	return f
-}
-
-func newPostHandler(t *testing.T) *AuthorizeHandler {
-	t.Helper()
-	users, err := auth.NewUserStore("username", "password", "u-0001", "seedName", "user@example.com")
-	if err != nil {
-		t.Fatalf("NewUserStore() failed: %v", err)
+	rec := getAuthorize(h, q)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
 	}
-	return NewAuthorizeHandler(auth.NewClientStore(), users, auth.NewCodeStore())
-}
 
-func postAuthorize(h *AuthorizeHandler, f url.Values) *httptest.ResponseRecorder {
-	req := httptest.NewRequest(http.MethodPost, "/authorize", strings.NewReader(f.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	rec := httptest.NewRecorder()
-	h.Post(rec, req)
-	return rec
+	got, err := store.Find(idFromBody(t, rec.Body.String()))
+	if err != nil {
+		t.Fatalf("Find() failed: %v", err)
+	}
+	want := parseAuthorizeRequest(q)
+	want.ExpiresAt = got.ExpiresAt
+	if *got != *want {
+		t.Errorf("saved request = %+v, want %+v", *got, *want)
+	}
 }
 
 func TestAuthorizeHandler_Post(t *testing.T) {
@@ -130,23 +212,23 @@ func TestAuthorizeHandler_Post(t *testing.T) {
 		mutate     func(f url.Values)
 		wantStatus int
 		wantError  string
-		wantCode   bool
 	}{
-		{"承認で code が返る", nil, http.StatusFound, "", true},
-		{"拒否は access_denied", func(f url.Values) { f.Set("action", "deny") }, http.StatusFound, "access_denied", false},
-		{"パスワード違いは再表示", func(f url.Values) { f.Set("password", "wrong") }, http.StatusOK, "", false},
-		{"ユーザ不在も再表示", func(f url.Values) { f.Set("username", "nobody") }, http.StatusOK, "", false},
-		{"hidden の redirect_uri 差し替えは 400", func(f url.Values) { f.Set("redirect_uri", "http://localhost:9999/callbacx") }, http.StatusBadRequest, "", false},
-		{"hidden の client_id 差し替えは 400", func(f url.Values) { f.Set("client_id", "unknown") }, http.StatusBadRequest, "", false},
-		{"hidden の code_challenge 削除は invalid_request", func(f url.Values) { f.Del("code_challenge") }, http.StatusFound, "invalid_request", false},
-		{"action 不正は 400", func(f url.Values) { f.Set("action", "x") }, http.StatusBadRequest, "", false},
-		{"action なしは 400", func(f url.Values) { f.Del("action") }, http.StatusBadRequest, "", false},
+		{"承認で code が返る", nil, http.StatusFound, ""},
+		{"拒否は access_denied", func(f url.Values) { f.Set("action", "deny") }, http.StatusFound, "access_denied"},
+		{"パスワード違いは再表示", func(f url.Values) { f.Set("password", "wrong") }, http.StatusOK, ""},
+		{"ユーザ不在も再表示", func(f url.Values) { f.Set("username", "nobody") }, http.StatusOK, ""},
+		{"action 不正は 400", func(f url.Values) { f.Set("action", "x") }, http.StatusBadRequest, ""},
+		{"action なしは 400", func(f url.Values) { f.Del("action") }, http.StatusBadRequest, ""},
+		{"存在しない id は 400", func(f url.Values) { f.Set("id", "bogus") }, http.StatusBadRequest, ""},
+		{"id なしは 400", func(f url.Values) { f.Del("id") }, http.StatusBadRequest, ""},
+		{"フォームの redirect_uri は無視する", func(f url.Values) { f.Set("redirect_uri", "http://evil/cb") }, http.StatusFound, ""},
 	}
-	h := newPostHandler(t)
 
+	h, store, _ := newAuthorizeHandler(t)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			f := validAuthorizeForm()
+			id := saveRequest(t, store, nil)
+			f := loginForm(id)
 			if tt.mutate != nil {
 				tt.mutate(f)
 			}
@@ -154,77 +236,132 @@ func TestAuthorizeHandler_Post(t *testing.T) {
 			if rec.Code != tt.wantStatus {
 				t.Fatalf("status = %d, want %d (body %q)", rec.Code, tt.wantStatus, rec.Body.String())
 			}
-			location := rec.Header().Get("Location")
 
 			switch tt.wantStatus {
-			case http.StatusOK, http.StatusBadRequest:
-				if location != "" {
-					t.Errorf("Location = %q, want empty", location)
+			case http.StatusOK:
+				body := rec.Body.String()
+				if !strings.Contains(body, "invalid username or password") {
+					t.Errorf("re-rendered page must show the error: %q", body)
 				}
-				if tt.wantStatus == http.StatusOK && !strings.Contains(rec.Body.String(), "invalid username or password") {
-					t.Errorf("re-rendered page must show the error: %q", rec.Body.String())
+				if got := idFromBody(t, body); got != id {
+					t.Errorf("re-rendered id = %q, want %q", got, id)
 				}
+			case http.StatusBadRequest:
+				assertBadRequest(t, rec)
 			case http.StatusFound:
-				loc, err := url.Parse(location)
-				if err != nil {
-					t.Fatalf("Location %q is not a URL: %v", location, err)
-				}
-				q := loc.Query()
-				if got := q.Get("error"); got != tt.wantError {
+				lq := redirectQuery(t, rec)
+				if got := lq.Get("error"); got != tt.wantError {
 					t.Errorf("error = %q, want %q", got, tt.wantError)
 				}
-				if !tt.wantCode && q.Has("code") {
-					t.Errorf("code must not be issued: %q", q.Get("code"))
+				if wantCode := tt.wantError == ""; lq.Has("code") != wantCode {
+					t.Errorf("code present = %v, want %v", lq.Has("code"), wantCode)
 				}
-				if got := q.Get("state"); got != f.Get("state") {
-					t.Errorf("state = %q, want %q", got, f.Get("state"))
-				}
-				loc.RawQuery = ""
-				if got := loc.String(); got != f.Get("redirect_uri") {
-					t.Errorf("redirect target= %q, want %q", got, f.Get("redirect_uri"))
+				if got := lq.Get("state"); got != testState {
+					t.Errorf("state = %q, want %q", got, testState)
 				}
 			}
 		})
 	}
 }
 
-func TestAuthorizeHandler_Post_CodeIsUniquePerApproval(t *testing.T) {
-	h := newPostHandler(t)
-	first := postAuthorize(h, validAuthorizeForm())
-	second := postAuthorize(h, validAuthorizeForm())
-	c1, _ := url.Parse(first.Header().Get("Location"))
-	c2, _ := url.Parse(second.Header().Get("Location"))
-	if c1 == nil || c2 == nil || c1.Query().Get("code") == c2.Query().Get("code") {
-		t.Errorf("code must differ: %q vs %q", first.Header().Get("Location"), second.Header().Get("Location"))
+func TestAuthorizeHandler_Post_RetryAfterWrongPassword(t *testing.T) {
+	h, store, _ := newAuthorizeHandler(t)
+	id := saveRequest(t, store, nil)
+
+	wrong := loginForm(id)
+	wrong.Set("password", "wrong")
+	if rec := postAuthorize(h, wrong); rec.Code != http.StatusOK {
+		t.Fatalf("wrong password status = %d, want 200", rec.Code)
+	}
+
+	if q := redirectQuery(t, postAuthorize(h, loginForm(id))); !q.Has("code") {
+		t.Errorf("retry must issue a code: %v", q)
+	}
+}
+
+func TestAuthorizeHandler_Post_ApproveIsSingleUse(t *testing.T) {
+	h, store, _ := newAuthorizeHandler(t)
+	id := saveRequest(t, store, nil)
+
+	redirectQuery(t, postAuthorize(h, loginForm(id)))
+	assertBadRequest(t, postAuthorize(h, loginForm(id)))
+}
+
+func TestAuthorizeHandler_Post_DenyConsumesRequest(t *testing.T) {
+	h, store, _ := newAuthorizeHandler(t)
+	id := saveRequest(t, store, nil)
+
+	deny := loginForm(id)
+	deny.Set("action", "deny")
+	redirectQuery(t, postAuthorize(h, deny))
+	assertBadRequest(t, postAuthorize(h, loginForm(id)))
+}
+
+func TestAuthorizeHandler_Post_InvalidActionKeepsRequest(t *testing.T) {
+	h, store, _ := newAuthorizeHandler(t)
+	id := saveRequest(t, store, nil)
+
+	invalid := loginForm(id)
+	invalid.Set("action", "x")
+	assertBadRequest(t, postAuthorize(h, invalid))
+
+	if q := redirectQuery(t, postAuthorize(h, loginForm(id))); !q.Has("code") {
+		t.Errorf("approve after invalid action must issue a code: %v", q)
+	}
+}
+
+func TestAuthorizeHandler_Post_IssuesCodeFromSavedRequest(t *testing.T) {
+	h, store, codes := newAuthorizeHandler(t)
+	id := saveRequest(t, store, func(r *auth.AuthorizeRequest) {
+		r.Scope = "openid profile"
+		r.Nonce = "nonce-saved"
+		r.CodeChallenge = "challenge-saved"
+	})
+
+	f := loginForm(id)
+	f.Set("scope", "openid email")
+	f.Set("nonce", "nonce-form")
+	f.Set("code_challenge", "challenge-form")
+	q := redirectQuery(t, postAuthorize(h, f))
+
+	got, err := codes.Consume(q.Get("code"))
+	if err != nil {
+		t.Fatalf("Consume() failed: %v", err)
+	}
+	if got.ClientID != "tegata-sample" || got.RedirectURI != "http://localhost:9999/callback" ||
+		got.Scope != "openid profile" || got.Nonce != "nonce-saved" ||
+		got.CodeChallenge != "challenge-saved" || got.Sub != "u-0001" {
+		t.Errorf("code = %+v, want values from the saved request", *got)
 	}
 }
 
 func TestAuthorizeHandler_Post_OmitsStateWhenAbsent(t *testing.T) {
-	f := validAuthorizeForm()
-	f.Del("state")
-	rec := postAuthorize(newPostHandler(t), f)
-	loc, err := url.Parse(rec.Header().Get("Location"))
-	if err != nil {
-		t.Fatalf("Location is not a URL: %v", err)
-	}
-	if loc.Query().Has("state") {
-		t.Errorf("Location %q must not contain state", loc)
+	h, store, _ := newAuthorizeHandler(t)
+	id := saveRequest(t, store, func(r *auth.AuthorizeRequest) { r.State = "" })
+
+	if q := redirectQuery(t, postAuthorize(h, loginForm(id))); q.Has("state") {
+		t.Errorf("Location must not contain state: %v", q)
 	}
 }
 
-func TestAuthorizeHandler_Get_EscapesReflectedValues(t *testing.T) {
-	q := validAuthorizeQuery()
-	q.Set("state", `"><script>alert(1)</script>`)
-	req := httptest.NewRequest(http.MethodGet, "/authorize?"+q.Encode(), nil)
-	rec := httptest.NewRecorder()
+func TestAuthorizeHandler_Post_RejectsUnregisteredClient(t *testing.T) {
+	h, store, _ := newAuthorizeHandler(t)
+	id := saveRequest(t, store, func(r *auth.AuthorizeRequest) { r.ClientID = "unknown" })
 
-	NewAuthorizeHandler(auth.NewClientStore(), nil, nil).Get(rec, req)
+	assertBadRequest(t, postAuthorize(h, loginForm(id)))
+}
 
-	body := rec.Body.String()
-	if strings.Contains(body, "<script>") {
-		t.Errorf("state was reflected without escaping: %q", body)
+func TestAuthorizeHandler_GetThenPost(t *testing.T) {
+	h, _, _ := newAuthorizeHandler(t)
+
+	page := getAuthorize(h, validAuthorizeQuery())
+	if page.Code != http.StatusOK {
+		t.Fatalf("GET status = %d, want 200", page.Code)
 	}
-	if !strings.Contains(body, "&lt;script&gt;") && !strings.Contains(body, "\u003cscript\u003e") {
-		t.Errorf("escaped state not found in body: %q", body)
+	id := idFromBody(t, page.Body.String())
+
+	q := redirectQuery(t, postAuthorize(h, loginForm(id)))
+	if !q.Has("code") || q.Get("state") != testState {
+		t.Errorf("Location query = %v, want code and state=%s", q, testState)
 	}
 }
