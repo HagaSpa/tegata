@@ -20,7 +20,7 @@ func advanceAuthorize(s *AuthorizeRequestStore, d time.Duration) {
 	s.now = func() time.Time { return testBase.Add(d) }
 }
 
-func validAuthorizaeRequest() *AuthorizeRequest {
+func validAuthorizeRequest() *AuthorizeRequest {
 	return &AuthorizeRequest{
 		ClientID:            "client-1",
 		RedirectURI:         "http://rp/cb",
@@ -37,7 +37,7 @@ func mustSave(t *testing.T, s *AuthorizeRequestStore, req *AuthorizeRequest) str
 	t.Helper()
 	key, err := s.Save(req)
 	if err != nil {
-		t.Fatalf("faild save err = %v", err)
+		t.Fatalf("failed save err = %v", err)
 	}
 	return key
 }
@@ -45,7 +45,7 @@ func mustSave(t *testing.T, s *AuthorizeRequestStore, req *AuthorizeRequest) str
 func TestAuthorizeRequestStore(t *testing.T) {
 	t.Run("保存した内容が取り出せる", func(t *testing.T) {
 		s := newFixedAuthorizeStore(t)
-		req := validAuthorizaeRequest()
+		req := validAuthorizeRequest()
 		key := mustSave(t, s, req)
 
 		got, err := s.Find(key)
@@ -70,7 +70,7 @@ func TestAuthorizeRequestStore(t *testing.T) {
 
 	t.Run("Find は2回呼び出せる", func(t *testing.T) {
 		s := newFixedAuthorizeStore(t)
-		req := validAuthorizaeRequest()
+		req := validAuthorizeRequest()
 		key := mustSave(t, s, req)
 
 		got, err := s.Find(key)
@@ -88,7 +88,7 @@ func TestAuthorizeRequestStore(t *testing.T) {
 
 	t.Run("FindAndDelete は2回呼び出すとエラー", func(t *testing.T) {
 		s := newFixedAuthorizeStore(t)
-		req := validAuthorizaeRequest()
+		req := validAuthorizeRequest()
 		key := mustSave(t, s, req)
 
 		_, err := s.FindAndDelete(key)
@@ -103,7 +103,7 @@ func TestAuthorizeRequestStore(t *testing.T) {
 
 	t.Run("FindAndDelete の後に Find を呼び出してもエラー", func(t *testing.T) {
 		s := newFixedAuthorizeStore(t)
-		req := validAuthorizaeRequest()
+		req := validAuthorizeRequest()
 		key := mustSave(t, s, req)
 
 		_, err := s.FindAndDelete(key)
@@ -118,7 +118,7 @@ func TestAuthorizeRequestStore(t *testing.T) {
 
 	t.Run("存在しない key はエラー", func(t *testing.T) {
 		s := newFixedAuthorizeStore(t)
-		req := validAuthorizaeRequest()
+		req := validAuthorizeRequest()
 		mustSave(t, s, req)
 
 		_, err := s.Find("notExist")
@@ -160,7 +160,7 @@ func TestAuthorizeRequestStore(t *testing.T) {
 			for _, tc := range cases {
 				t.Run(l.name+"/"+tc.name, func(t *testing.T) {
 					s := newFixedAuthorizeStore(t)
-					key := mustSave(t, s, validAuthorizaeRequest())
+					key := mustSave(t, s, validAuthorizeRequest())
 					advanceAuthorize(s, tc.elapsed)
 
 					_, err := l.call(s, key)
@@ -177,7 +177,7 @@ func TestAuthorizeRequestStore(t *testing.T) {
 
 	t.Run("期限切れでも FindAndDelete は消す", func(t *testing.T) {
 		s := newFixedAuthorizeStore(t)
-		key := mustSave(t, s, validAuthorizaeRequest())
+		key := mustSave(t, s, validAuthorizeRequest())
 		advanceAuthorize(s, 11*time.Minute)
 
 		if _, err := s.FindAndDelete(key); !errors.Is(err, ErrAuthorizeRequestNotFound) {
@@ -191,7 +191,7 @@ func TestAuthorizeRequestStore(t *testing.T) {
 
 	t.Run("Find の戻り値を書き換えてもストアは変わらない", func(t *testing.T) {
 		s := newFixedAuthorizeStore(t)
-		key := mustSave(t, s, validAuthorizaeRequest())
+		key := mustSave(t, s, validAuthorizeRequest())
 
 		got, err := s.Find(key)
 		if err != nil {
@@ -210,7 +210,7 @@ func TestAuthorizeRequestStore(t *testing.T) {
 
 	t.Run("Save の後に引数を書き換えてもストアは変わらない", func(t *testing.T) {
 		s := newFixedAuthorizeStore(t)
-		req := validAuthorizaeRequest()
+		req := validAuthorizeRequest()
 		key := mustSave(t, s, req)
 		req.RedirectURI = "http://evil/cb"
 
@@ -225,7 +225,7 @@ func TestAuthorizeRequestStore(t *testing.T) {
 
 	t.Run("Save は引数の ExpiresAt を書き換えない", func(t *testing.T) {
 		s := newFixedAuthorizeStore(t)
-		req := validAuthorizaeRequest()
+		req := validAuthorizeRequest()
 		mustSave(t, s, req)
 
 		if !req.ExpiresAt.IsZero() {
@@ -235,8 +235,8 @@ func TestAuthorizeRequestStore(t *testing.T) {
 
 	t.Run("key は毎回違う 43 文字の base64url", func(t *testing.T) {
 		s := newFixedAuthorizeStore(t)
-		key1 := mustSave(t, s, validAuthorizaeRequest())
-		key2 := mustSave(t, s, validAuthorizaeRequest())
+		key1 := mustSave(t, s, validAuthorizeRequest())
+		key2 := mustSave(t, s, validAuthorizeRequest())
 
 		if key1 == key2 {
 			t.Errorf("Save() returned the same key twice: %s", key1)
@@ -253,7 +253,7 @@ func TestAuthorizeRequestStore(t *testing.T) {
 
 	t.Run("同時に FindAndDelete しても成功は 1 回だけ", func(t *testing.T) {
 		s := newFixedAuthorizeStore(t)
-		key := mustSave(t, s, validAuthorizaeRequest())
+		key := mustSave(t, s, validAuthorizeRequest())
 
 		const workers = 16
 		var wg sync.WaitGroup
