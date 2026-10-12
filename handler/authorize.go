@@ -70,12 +70,12 @@ func (h *AuthorizeHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if code, desc := validateAuthorizeRequest(req); code != "" {
-		redirectAuthorizationError(w, r, req.RedirectURI, code, desc, req.State)
+		redirectAuthorizationError(w, r, req, code, desc)
 		return
 	}
 	id, err := h.authReq.Save(req)
 	if err != nil {
-		redirectAuthorizationError(w, r, req.RedirectURI, errServerError, "failed to save authorize request", req.State)
+		redirectAuthorizationError(w, r, req, errServerError, "failed to save authorize request")
 		return
 	}
 	param := templateParam{
@@ -127,11 +127,11 @@ func (h *AuthorizeHandler) Post(w http.ResponseWriter, r *http.Request) {
 
 	switch action {
 	case "deny":
-		redirectAuthorizationError(w, r, req.RedirectURI, errAccessDenied, "the user denied the request", req.State)
+		redirectAuthorizationError(w, r, req, errAccessDenied, "the user denied the request")
 	case "approve":
 		code, err := h.code.Issue(req.ClientID, req.RedirectURI, req.Scope, req.CodeChallenge, req.Nonce, sub)
 		if err != nil {
-			redirectAuthorizationError(w, r, req.RedirectURI, errServerError, "failed to issue code", req.State)
+			redirectAuthorizationError(w, r, req, errServerError, "failed to issue code")
 			return
 		}
 		values := url.Values{}

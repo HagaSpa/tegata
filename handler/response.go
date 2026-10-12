@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+
+	"github.com/HagaSpa/tegata/auth"
 )
 
 type errorCode string
@@ -24,18 +26,17 @@ const (
 func redirectAuthorizationError(
 	w http.ResponseWriter,
 	r *http.Request,
-	redirectURI string,
+	req *auth.AuthorizeRequest,
 	code errorCode,
 	desc string,
-	state string,
 ) {
 	values := url.Values{}
 	values.Set("error", string(code))
 	values.Set("error_description", desc)
-	if state != "" {
-		values.Set("state", state)
+	if req.State != "" {
+		values.Set("state", req.State)
 	}
-	redirectToClient(w, r, redirectURI, values)
+	redirectToClient(w, r, req.RedirectURI, values)
 }
 
 func redirectToClient(
