@@ -8,7 +8,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/HagaSpa/tegata/auth"
+	"github.com/HagaSpa/tegata/internal/op/auth"
 )
 
 //go:embed index.html

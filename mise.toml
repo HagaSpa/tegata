@@ -19,7 +19,7 @@ run = "docker compose down"
 
 [tasks.serve]
 description = "Run tegata locally with go run (http://localhost:8080)"
-run = "go run ."
+run = "go run ./cmd/op"
 
 [tasks.smoke]
 description = "Check /authorize behavior against a running OpenID Provider (start it with mise serve)"

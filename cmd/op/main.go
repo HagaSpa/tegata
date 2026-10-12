@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/HagaSpa/tegata/auth"
-	"github.com/HagaSpa/tegata/handler"
+	"github.com/HagaSpa/tegata/internal/op/auth"
+	"github.com/HagaSpa/tegata/internal/op/handler"
 )
 
 func pingHandler(w http.ResponseWriter, r *http.Request) {

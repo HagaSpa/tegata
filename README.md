@@ -1,7 +1,9 @@
 # tegata
 tegata is an OpenID Provider (OAuth 2.0 Authorization Server). Reinventing the wheel for learning purposes.
 
-| compose service | role |
-|---|---|
-| `openid-provider` | tegata itself. Issues authorization codes, ID tokens and access tokens |
-| `relying-party` | Sample client (`tools/rp`) that signs in through `openid-provider` |
+| compose service | directory | role |
+|---|---|---|
+| `openid-provider` | `cmd/op`, `internal/op` | tegata itself. Issues authorization codes, ID tokens and access tokens |
+| `relying-party` | `tools/rp` | Sample client that signs in through `openid-provider` |
+
+The main module uses only the Go standard library. `tools/rp` is a separate module because it depends on go-oidc for verification.

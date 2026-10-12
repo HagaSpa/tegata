@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/HagaSpa/tegata/auth"
+	"github.com/HagaSpa/tegata/internal/op/auth"
 )
 
 const (

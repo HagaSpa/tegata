@@ -3,7 +3,7 @@ package handler
 import (
 	"net/http"
 
-	"github.com/HagaSpa/tegata/auth"
+	"github.com/HagaSpa/tegata/internal/op/auth"
 )
 
 type MetadataHandler struct {

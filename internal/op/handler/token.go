@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/HagaSpa/tegata/auth"
+	"github.com/HagaSpa/tegata/internal/op/auth"
 )
 
 const tokenTTL = time.Hour

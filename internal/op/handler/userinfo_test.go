@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/HagaSpa/tegata/auth"
+	"github.com/HagaSpa/tegata/internal/op/auth"
 )
 
 func newUserInfoHandler(t *testing.T) (*UserInfoHandler, *auth.KeyManager) {
