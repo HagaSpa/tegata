@@ -60,7 +60,7 @@ func redirectToClient(
 	http.Redirect(w, r, u.String(), http.StatusFound)
 }
 
-type oauthErrorResponse struct {
+type tokenErrorResponse struct {
 	Error       string `json:"error"`
 	Description string `json:"error_description"`
 }
@@ -72,7 +72,7 @@ func writeTokenError(
 	desc string,
 ) {
 	w.Header().Set("Cache-Control", "no-store")
-	v := oauthErrorResponse{
+	v := tokenErrorResponse{
 		Error:       string(code),
 		Description: desc,
 	}
