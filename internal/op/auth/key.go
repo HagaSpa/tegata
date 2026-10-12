@@ -6,10 +6,15 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math/big"
 	"time"
+
+	"github.com/HagaSpa/tegata/internal/jwt"
 )
+
+var ErrUnknownKey = errors.New("unknown key")
 
 // JSON Web Key
 type JWK struct {
@@ -55,4 +60,19 @@ func (m *KeyManager) JWKS() JWKS {
 	return JWKS{
 		Keys: []JWK{jwk},
 	}
+}
+
+func (m *KeyManager) Sign(claims *jwt.Claims) (*jwt.Token, error) {
+	return jwt.Sign(m.privateKey, m.keyID, claims)
+}
+
+func (m *KeyManager) Verify(token string) (*jwt.Claims, error) {
+	return jwt.Verify(token, m.publicKey, m.now())
+}
+
+func (m *KeyManager) publicKey(kid string) (*rsa.PublicKey, error) {
+	if kid != m.keyID {
+		return nil, ErrUnknownKey
+	}
+	return &m.privateKey.PublicKey, nil
 }

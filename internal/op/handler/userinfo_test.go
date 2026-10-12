@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/HagaSpa/tegata/internal/jwt"
 	"github.com/HagaSpa/tegata/internal/op/auth"
 )
 
@@ -23,13 +24,13 @@ func newUserInfoHandler(t *testing.T) (*UserInfoHandler, *auth.KeyManager) {
 	return NewUserInfofHandler(km, us, testIssuer), km
 }
 
-func signToken(t *testing.T, km *auth.KeyManager, claim *auth.Claim) string {
+func signToken(t *testing.T, km *auth.KeyManager, claim *jwt.Claims) string {
 	t.Helper()
-	jwt, err := km.Sign(claim)
+	tok, err := km.Sign(claim)
 	if err != nil {
 		t.Fatalf("KeyManager.Sign() failed: %v", err)
 	}
-	return jwt.String()
+	return tok.String()
 }
 
 func getUserInfo(h *UserInfoHandler, authorization string) *httptest.ResponseRecorder {
@@ -42,9 +43,9 @@ func getUserInfo(h *UserInfoHandler, authorization string) *httptest.ResponseRec
 	return rec
 }
 
-func accessClaims(scope string) *auth.Claim {
+func accessClaims(scope string) *jwt.Claims {
 	now := time.Now()
-	return &auth.Claim{
+	return &jwt.Claims{
 		Iss:   testIssuer,
 		Sub:   "u-0001",
 		Aud:   testIssuer + "/userinfo",

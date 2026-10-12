@@ -2,7 +2,6 @@ package handler
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/url"
 
@@ -20,7 +19,6 @@ const (
 	errInvalidClient           errorCode = "invalid_client"
 	errInvalidGrant            errorCode = "invalid_grant"
 	errUnsupportedGrantType    errorCode = "unsupported_grant_type"
-	errInvalidToken            errorCode = "invalid_token"
 )
 
 func redirectAuthorizationError(
@@ -77,16 +75,6 @@ func writeTokenError(
 		Description: desc,
 	}
 	writeJSON(w, status, v)
-}
-
-func writeBearerError(w http.ResponseWriter, code errorCode) {
-	w.Header().Set("WWW-Authenticate", fmt.Sprintf(`Bearer error="%s"`, code))
-	http.Error(w, string(code), http.StatusUnauthorized)
-}
-
-func writeBearerChallenge(w http.ResponseWriter) {
-	w.Header().Set("WWW-Authenticate", "Bearer")
-	http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 }
 
 func writeInternalError(w http.ResponseWriter) {

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/HagaSpa/tegata/internal/jwt"
 	"github.com/HagaSpa/tegata/internal/op/auth"
 )
 
@@ -22,7 +23,7 @@ type CodeConsumer interface {
 }
 
 type Signer interface {
-	Sign(*auth.Claim) (*auth.JWT, error)
+	Sign(*jwt.Claims) (*jwt.Token, error)
 }
 
 type TokenHandler struct {
@@ -107,7 +108,7 @@ func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idToken, err := h.signer.Sign(&auth.Claim{
+	idToken, err := h.signer.Sign(&jwt.Claims{
 		Iss:   h.issuer,
 		Sub:   code.Sub,
 		Aud:   user,
@@ -119,7 +120,7 @@ func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 		writeTokenError(w, http.StatusInternalServerError, errServerError, "failed to sign id_token")
 		return
 	}
-	access, err := h.signer.Sign(&auth.Claim{
+	access, err := h.signer.Sign(&jwt.Claims{
 		Iss:   h.issuer,
 		Sub:   code.Sub,
 		Aud:   h.issuer + "/userinfo",

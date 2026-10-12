@@ -5,11 +5,13 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/HagaSpa/tegata/internal/bearer"
+	"github.com/HagaSpa/tegata/internal/jwt"
 	"github.com/HagaSpa/tegata/internal/op/auth"
 )
 
 type Verifier interface {
-	Verify(token string) (*auth.Claim, error)
+	Verify(token string) (*jwt.Claims, error)
 }
 
 type ProfileFinder interface {
@@ -43,35 +45,30 @@ type userInfoResponse struct {
 }
 
 func (h *UserInfoHandler) Get(w http.ResponseWriter, r *http.Request) {
-	ah := r.Header.Get("Authorization")
-	if ah == "" || len(strings.Fields(ah)) != 2 {
-		writeBearerChallenge(w)
-		return
-	}
-	sl := strings.Fields(ah)
-	if !strings.EqualFold(sl[0], "Bearer") {
-		writeBearerChallenge(w)
+	token, ok := bearer.Token(r)
+	if !ok {
+		bearer.WriteChallenge(w)
 		return
 	}
 
-	claim, err := h.verifier.Verify(sl[1])
+	claim, err := h.verifier.Verify(token)
 	if err != nil {
-		writeBearerError(w, errInvalidToken)
+		bearer.WriteError(w, bearer.InvalidToken)
 		return
 	}
 	if claim.Iss != h.issuer {
-		writeBearerError(w, errInvalidToken)
+		bearer.WriteError(w, bearer.InvalidToken)
 		return
 	}
 	if claim.Aud != h.issuer+"/userinfo" {
-		writeBearerError(w, errInvalidToken)
+		bearer.WriteError(w, bearer.InvalidToken)
 		return
 
 	}
 
 	user := h.finder.FindBySub(claim.Sub)
 	if user == nil {
-		writeBearerError(w, errInvalidToken)
+		bearer.WriteError(w, bearer.InvalidToken)
 		return
 	}
 
