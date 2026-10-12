@@ -1,11 +1,11 @@
-package auth
+package registry
 
 import (
 	"reflect"
 	"testing"
 )
 
-func TestUserStore_FindBySub(t *testing.T) {
+func TestUsers_FindBySub(t *testing.T) {
 	tests := []struct {
 		name         string
 		seedUsername string
@@ -44,7 +44,7 @@ func TestUserStore_FindBySub(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s, err := NewUserStore(tt.seedUsername, tt.seedPassword, tt.seedSub, tt.seedName, tt.seedEmail)
+			s, err := NewUsers(tt.seedUsername, tt.seedPassword, tt.seedSub, tt.seedName, tt.seedEmail)
 			if err != nil {
 				t.Fatalf("could not construct receiver type: %v", err)
 			}

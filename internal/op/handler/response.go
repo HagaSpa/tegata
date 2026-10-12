@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/HagaSpa/tegata/internal/op/auth"
+	"github.com/HagaSpa/tegata/internal/op/store"
 )
 
 type errorCode string
@@ -24,7 +24,7 @@ const (
 func redirectAuthorizationError(
 	w http.ResponseWriter,
 	r *http.Request,
-	req *auth.AuthorizeRequest,
+	req *store.AuthorizeRequest,
 	code errorCode,
 	desc string,
 ) {

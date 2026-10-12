@@ -8,17 +8,18 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/HagaSpa/tegata/internal/op/auth"
+	"github.com/HagaSpa/tegata/internal/op/registry"
+	"github.com/HagaSpa/tegata/internal/op/store"
 )
 
 const testState = "state-1"
 
 var hiddenIDPattern = regexp.MustCompile(`name="id" value="([A-Za-z0-9_-]{43})"`)
 
-func newAuthorizeHandler(t *testing.T) (*AuthorizeHandler, *auth.AuthorizeRequestStore, *auth.CodeStore) {
+func newAuthorizeHandler(t *testing.T) (*AuthorizeHandler, *store.AuthorizeRequests, *store.Codes) {
 	t.Helper()
-	cl := auth.NewClientStore()
-	u, err := auth.NewUserStore(
+	cl := registry.NewClients()
+	u, err := registry.NewUsers(
 		"username",
 		"password",
 		"u-0001",
@@ -28,8 +29,8 @@ func newAuthorizeHandler(t *testing.T) (*AuthorizeHandler, *auth.AuthorizeReques
 	if err != nil {
 		t.Fatal("failed initilize")
 	}
-	co := auth.NewCodeStore()
-	ar := auth.NewAuthorizeRequestStore()
+	co := store.NewCodes()
+	ar := store.NewAuthorizeRequests()
 	h := NewAuthorizeHandler(cl, u, co, ar)
 	return h, ar, co
 }
@@ -47,13 +48,13 @@ func validAuthorizeQuery() url.Values {
 	return q
 }
 
-func saveRequest(t *testing.T, store *auth.AuthorizeRequestStore, mutate func(r *auth.AuthorizeRequest)) string {
+func saveRequest(t *testing.T, reqs *store.AuthorizeRequests, mutate func(r *store.AuthorizeRequest)) string {
 	t.Helper()
 	req := parseAuthorizeRequest(validAuthorizeQuery())
 	if mutate != nil {
 		mutate(req)
 	}
-	id, err := store.Save(req)
+	id, err := reqs.Save(req)
 	if err != nil {
 		t.Fatalf("Save() failed: %v", err)
 	}
@@ -187,7 +188,7 @@ func TestAuthorizeHandler_Get(t *testing.T) {
 }
 
 func TestAuthorizeHandler_Get_SavesRequest(t *testing.T) {
-	h, store, _ := newAuthorizeHandler(t)
+	h, reqs, _ := newAuthorizeHandler(t)
 	q := validAuthorizeQuery()
 
 	rec := getAuthorize(h, q)
@@ -195,7 +196,7 @@ func TestAuthorizeHandler_Get_SavesRequest(t *testing.T) {
 		t.Fatalf("status = %d, want 200", rec.Code)
 	}
 
-	got, err := store.Find(idFromBody(t, rec.Body.String()))
+	got, err := reqs.Find(idFromBody(t, rec.Body.String()))
 	if err != nil {
 		t.Fatalf("Find() failed: %v", err)
 	}
@@ -224,10 +225,10 @@ func TestAuthorizeHandler_Post(t *testing.T) {
 		{"フォームの redirect_uri は無視する", func(f url.Values) { f.Set("redirect_uri", "http://evil/cb") }, http.StatusFound, ""},
 	}
 
-	h, store, _ := newAuthorizeHandler(t)
+	h, reqs, _ := newAuthorizeHandler(t)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			id := saveRequest(t, store, nil)
+			id := saveRequest(t, reqs, nil)
 			f := loginForm(id)
 			if tt.mutate != nil {
 				tt.mutate(f)
@@ -265,8 +266,8 @@ func TestAuthorizeHandler_Post(t *testing.T) {
 }
 
 func TestAuthorizeHandler_Post_RetryAfterWrongPassword(t *testing.T) {
-	h, store, _ := newAuthorizeHandler(t)
-	id := saveRequest(t, store, nil)
+	h, reqs, _ := newAuthorizeHandler(t)
+	id := saveRequest(t, reqs, nil)
 
 	wrong := loginForm(id)
 	wrong.Set("password", "wrong")
@@ -280,16 +281,16 @@ func TestAuthorizeHandler_Post_RetryAfterWrongPassword(t *testing.T) {
 }
 
 func TestAuthorizeHandler_Post_ApproveIsSingleUse(t *testing.T) {
-	h, store, _ := newAuthorizeHandler(t)
-	id := saveRequest(t, store, nil)
+	h, reqs, _ := newAuthorizeHandler(t)
+	id := saveRequest(t, reqs, nil)
 
 	redirectQuery(t, postAuthorize(h, loginForm(id)))
 	assertBadRequest(t, postAuthorize(h, loginForm(id)))
 }
 
 func TestAuthorizeHandler_Post_DenyConsumesRequest(t *testing.T) {
-	h, store, _ := newAuthorizeHandler(t)
-	id := saveRequest(t, store, nil)
+	h, reqs, _ := newAuthorizeHandler(t)
+	id := saveRequest(t, reqs, nil)
 
 	deny := loginForm(id)
 	deny.Set("action", "deny")
@@ -298,8 +299,8 @@ func TestAuthorizeHandler_Post_DenyConsumesRequest(t *testing.T) {
 }
 
 func TestAuthorizeHandler_Post_InvalidActionKeepsRequest(t *testing.T) {
-	h, store, _ := newAuthorizeHandler(t)
-	id := saveRequest(t, store, nil)
+	h, reqs, _ := newAuthorizeHandler(t)
+	id := saveRequest(t, reqs, nil)
 
 	invalid := loginForm(id)
 	invalid.Set("action", "x")
@@ -311,8 +312,8 @@ func TestAuthorizeHandler_Post_InvalidActionKeepsRequest(t *testing.T) {
 }
 
 func TestAuthorizeHandler_Post_IssuesCodeFromSavedRequest(t *testing.T) {
-	h, store, codes := newAuthorizeHandler(t)
-	id := saveRequest(t, store, func(r *auth.AuthorizeRequest) {
+	h, reqs, codes := newAuthorizeHandler(t)
+	id := saveRequest(t, reqs, func(r *store.AuthorizeRequest) {
 		r.Scope = "openid profile"
 		r.Nonce = "nonce-saved"
 		r.CodeChallenge = "challenge-saved"
@@ -336,8 +337,8 @@ func TestAuthorizeHandler_Post_IssuesCodeFromSavedRequest(t *testing.T) {
 }
 
 func TestAuthorizeHandler_Post_OmitsStateWhenAbsent(t *testing.T) {
-	h, store, _ := newAuthorizeHandler(t)
-	id := saveRequest(t, store, func(r *auth.AuthorizeRequest) { r.State = "" })
+	h, reqs, _ := newAuthorizeHandler(t)
+	id := saveRequest(t, reqs, func(r *store.AuthorizeRequest) { r.State = "" })
 
 	if q := redirectQuery(t, postAuthorize(h, loginForm(id))); q.Has("state") {
 		t.Errorf("Location must not contain state: %v", q)
@@ -345,8 +346,8 @@ func TestAuthorizeHandler_Post_OmitsStateWhenAbsent(t *testing.T) {
 }
 
 func TestAuthorizeHandler_Post_RejectsUnregisteredClient(t *testing.T) {
-	h, store, _ := newAuthorizeHandler(t)
-	id := saveRequest(t, store, func(r *auth.AuthorizeRequest) { r.ClientID = "unknown" })
+	h, reqs, _ := newAuthorizeHandler(t)
+	id := saveRequest(t, reqs, func(r *store.AuthorizeRequest) { r.ClientID = "unknown" })
 
 	assertBadRequest(t, postAuthorize(h, loginForm(id)))
 }

@@ -8,27 +8,28 @@ import (
 	"time"
 
 	"github.com/HagaSpa/tegata/internal/jwt"
-	"github.com/HagaSpa/tegata/internal/op/auth"
+	"github.com/HagaSpa/tegata/internal/op/keys"
+	"github.com/HagaSpa/tegata/internal/op/registry"
 )
 
-func newUserInfoHandler(t *testing.T) (*UserInfoHandler, *auth.KeyManager) {
+func newUserInfoHandler(t *testing.T) (*UserInfoHandler, *keys.Manager) {
 	t.Helper()
-	km, err := auth.NewKeyManager()
+	km, err := keys.NewManager()
 	if err != nil {
-		t.Fatalf("NewKeyManager() failed: %v", err)
+		t.Fatalf("keys.NewManager() failed: %v", err)
 	}
-	us, err := auth.NewUserStore("username", "password", "u-0001", "Tegata User", "user@example.com")
+	us, err := registry.NewUsers("username", "password", "u-0001", "Tegata User", "user@example.com")
 	if err != nil {
-		t.Fatalf("NewUserStore() failed: %v", err)
+		t.Fatalf("registry.NewUsers() failed: %v", err)
 	}
 	return NewUserInfofHandler(km, us, testIssuer), km
 }
 
-func signToken(t *testing.T, km *auth.KeyManager, claim *jwt.Claims) string {
+func signToken(t *testing.T, km *keys.Manager, claim *jwt.Claims) string {
 	t.Helper()
 	tok, err := km.Sign(claim)
 	if err != nil {
-		t.Fatalf("KeyManager.Sign() failed: %v", err)
+		t.Fatalf("Manager.Sign() failed: %v", err)
 	}
 	return tok.String()
 }

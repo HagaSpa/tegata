@@ -6,8 +6,10 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/HagaSpa/tegata/internal/op/auth"
 	"github.com/HagaSpa/tegata/internal/op/handler"
+	"github.com/HagaSpa/tegata/internal/op/keys"
+	"github.com/HagaSpa/tegata/internal/op/registry"
+	"github.com/HagaSpa/tegata/internal/op/store"
 )
 
 func pingHandler(w http.ResponseWriter, r *http.Request) {
@@ -15,7 +17,7 @@ func pingHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	km, err := auth.NewKeyManager()
+	km, err := keys.NewManager()
 	if err != nil {
 		log.Fatalf("failed to init key manager: %v", err)
 	}
@@ -24,10 +26,9 @@ func main() {
 	if !exists {
 		issuer = "http://localhost:8080"
 	}
-	config := auth.NewOpenIdConfiguration(issuer)
 
-	cl := auth.NewClientStore()
-	u, err := auth.NewUserStore(
+	cl := registry.NewClients()
+	u, err := registry.NewUsers(
 		"username",
 		"password",
 		"u-0001",
@@ -38,11 +39,11 @@ func main() {
 		log.Fatalf("failed to init user store: %v", err)
 	}
 
-	co := auth.NewCodeStore()
-	ar := auth.NewAuthorizeRequestStore()
+	co := store.NewCodes()
+	ar := store.NewAuthorizeRequests()
 
 	jwksHandler := handler.NewJWKHandler(km)
-	metadataHandler := handler.NewMetadataHandler(config)
+	metadataHandler := handler.NewMetadataHandler(issuer)
 	authHandler := handler.NewAuthorizeHandler(cl, u, co, ar)
 	tokenHandler := handler.NewTokenHandler(cl, co, km, issuer)
 	useinfoHandler := handler.NewUserInfofHandler(km, u, issuer)

@@ -7,7 +7,7 @@ import (
 
 	"github.com/HagaSpa/tegata/internal/bearer"
 	"github.com/HagaSpa/tegata/internal/jwt"
-	"github.com/HagaSpa/tegata/internal/op/auth"
+	"github.com/HagaSpa/tegata/internal/op/registry"
 )
 
 type Verifier interface {
@@ -15,7 +15,7 @@ type Verifier interface {
 }
 
 type ProfileFinder interface {
-	FindBySub(sub string) *auth.Profile
+	FindBySub(sub string) *registry.Profile
 }
 
 type UserInfoHandler struct {

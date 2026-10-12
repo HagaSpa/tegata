@@ -1,8 +1,8 @@
-package auth
+package registry
 
 import "testing"
 
-func TestClientStore_ValidateRedirectURI(t *testing.T) {
+func TestClients_ValidateRedirectURI(t *testing.T) {
 	tests := []struct {
 		name     string
 		clientID string
@@ -36,7 +36,7 @@ func TestClientStore_ValidateRedirectURI(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := NewClientStore()
+			s := NewClients()
 			got := s.ValidateRedirectURI(tt.clientID, tt.uri)
 			if got != tt.want {
 				t.Errorf("ValidateRjdirectURI() = %v, want %v", got, tt.want)
@@ -45,7 +45,7 @@ func TestClientStore_ValidateRedirectURI(t *testing.T) {
 	}
 }
 
-func TestClientStore_Authenticate(t *testing.T) {
+func TestClients_Authenticate(t *testing.T) {
 	tests := []struct {
 		name     string
 		clientID string
@@ -73,7 +73,7 @@ func TestClientStore_Authenticate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := NewClientStore()
+			s := NewClients()
 			got := s.Authenticate(tt.clientID, tt.secret)
 			if got != tt.want {
 				t.Errorf("Authenticate() = %v, want %v", got, tt.want)

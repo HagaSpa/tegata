@@ -3,11 +3,11 @@ package handler
 import (
 	"net/http"
 
-	"github.com/HagaSpa/tegata/internal/op/auth"
+	"github.com/HagaSpa/tegata/internal/op/keys"
 )
 
 type JWKSProvider interface {
-	JWKS() auth.JWKS
+	JWKS() keys.JWKS
 }
 
 type JWKHandler struct {

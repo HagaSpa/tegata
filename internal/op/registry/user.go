@@ -1,4 +1,4 @@
-package auth
+package registry
 
 import (
 	"crypto/pbkdf2"
@@ -24,17 +24,17 @@ type user struct {
 	email string
 }
 
-type UserStore struct {
+type Users struct {
 	users map[string]*user
 }
 
-func NewUserStore(
+func NewUsers(
 	seedUsername string,
 	seedPassword string,
 	seedSub string,
 	seedName string,
 	seedEmail string,
-) (*UserStore, error) {
+) (*Users, error) {
 	salt := make([]byte, 16)
 	_, err := rand.Read(salt)
 	if err != nil {
@@ -44,7 +44,7 @@ func NewUserStore(
 	if err != nil {
 		return nil, fmt.Errorf("derive key: %w", err)
 	}
-	return &UserStore{
+	return &Users{
 		users: map[string]*user{
 			seedUsername: {
 				sub:   seedSub,
@@ -57,7 +57,7 @@ func NewUserStore(
 	}, nil
 }
 
-func (s *UserStore) Authenticate(username string, password string) (string, error) {
+func (s *Users) Authenticate(username string, password string) (string, error) {
 	user := s.users[username]
 	if user == nil {
 		return "", ErrInvalidCredential
@@ -80,7 +80,7 @@ type Profile struct {
 	Email             string
 }
 
-func (s *UserStore) FindBySub(sub string) *Profile {
+func (s *Users) FindBySub(sub string) *Profile {
 	var user Profile
 	hasUser := false
 

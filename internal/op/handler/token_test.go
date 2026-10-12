@@ -10,7 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/HagaSpa/tegata/internal/op/auth"
+	"github.com/HagaSpa/tegata/internal/op/keys"
+	"github.com/HagaSpa/tegata/internal/op/registry"
+	"github.com/HagaSpa/tegata/internal/op/store"
 )
 
 const (
@@ -19,14 +21,14 @@ const (
 	testNonce    = "nonce-1"
 )
 
-func newTokenHandler(t *testing.T) (*TokenHandler, *auth.CodeStore) {
+func newTokenHandler(t *testing.T) (*TokenHandler, *store.Codes) {
 	t.Helper()
-	km, err := auth.NewKeyManager()
+	km, err := keys.NewManager()
 	if err != nil {
 		t.Fatal(err)
 	}
-	co := auth.NewCodeStore()
-	return NewTokenHandler(auth.NewClientStore(), co, km, testIssuer), co
+	co := store.NewCodes()
+	return NewTokenHandler(registry.NewClients(), co, km, testIssuer), co
 }
 
 func challengeOf(verifier string) string {
@@ -34,7 +36,7 @@ func challengeOf(verifier string) string {
 	return base64.RawURLEncoding.EncodeToString(sum[:])
 }
 
-func issueCode(t *testing.T, codes *auth.CodeStore, verifier, nonce string) string {
+func issueCode(t *testing.T, codes *store.Codes, verifier, nonce string) string {
 	t.Helper()
 	code, err := codes.Issue("tegata-sample", "http://localhost:9999/callback", "openid", challengeOf(verifier), nonce, "u-0001")
 	if err != nil {

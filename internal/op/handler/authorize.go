@@ -8,7 +8,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/HagaSpa/tegata/internal/op/auth"
+	"github.com/HagaSpa/tegata/internal/op/store"
 )
 
 //go:embed index.html
@@ -23,9 +23,9 @@ type UserAuthenticator interface {
 }
 
 type AuthorizeRequestOperator interface {
-	Save(req *auth.AuthorizeRequest) (string, error)
-	Find(key string) (*auth.AuthorizeRequest, error)
-	FindAndDelete(key string) (*auth.AuthorizeRequest, error)
+	Save(req *store.AuthorizeRequest) (string, error)
+	Find(key string) (*store.AuthorizeRequest, error)
+	FindAndDelete(key string) (*store.AuthorizeRequest, error)
 }
 
 type CodeIssuer interface {
@@ -155,8 +155,8 @@ func (h *AuthorizeHandler) render(w http.ResponseWriter, p *templateParam) {
 	}
 }
 
-func parseAuthorizeRequest(v url.Values) *auth.AuthorizeRequest {
-	return &auth.AuthorizeRequest{
+func parseAuthorizeRequest(v url.Values) *store.AuthorizeRequest {
+	return &store.AuthorizeRequest{
 		ClientID:            v.Get("client_id"),
 		RedirectURI:         v.Get("redirect_uri"),
 		ResponseType:        v.Get("response_type"),
@@ -168,7 +168,7 @@ func parseAuthorizeRequest(v url.Values) *auth.AuthorizeRequest {
 	}
 }
 
-func validateAuthorizeRequest(r *auth.AuthorizeRequest) (errorCode, string) {
+func validateAuthorizeRequest(r *store.AuthorizeRequest) (errorCode, string) {
 	if r.ResponseType != "code" {
 		return errUnsupportedResponseType, "response_type needs code"
 	}

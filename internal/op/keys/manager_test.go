@@ -1,4 +1,4 @@
-package auth
+package keys
 
 import (
 	"errors"
@@ -8,9 +8,11 @@ import (
 	"github.com/HagaSpa/tegata/internal/jwt"
 )
 
-func newKeyManager(t *testing.T) *KeyManager {
+var testBase = time.Date(2026, 9, 23, 12, 0, 0, 0, time.UTC)
+
+func newManager(t *testing.T) *Manager {
 	t.Helper()
-	m, err := NewKeyManager()
+	m, err := NewManager()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -28,9 +30,9 @@ func newFixedClaims() *jwt.Claims {
 	}
 }
 
-func TestKeyManager(t *testing.T) {
+func TestManager(t *testing.T) {
 	t.Run("自分で Sign したトークンは Verify できる", func(t *testing.T) {
-		m := newKeyManager(t)
+		m := newManager(t)
 		tok, err := m.Sign(newFixedClaims())
 		if err != nil {
 			t.Fatalf("Sign() failed: %v", err)
@@ -41,25 +43,25 @@ func TestKeyManager(t *testing.T) {
 	})
 
 	t.Run("JWKS の kid で署名している", func(t *testing.T) {
-		m := newKeyManager(t)
+		m := newManager(t)
 		if _, err := m.publicKey(m.JWKS().Keys[0].Kid); err != nil {
 			t.Errorf("publicKey(JWKS kid) failed: %v", err)
 		}
 	})
 
-	t.Run("別の KeyManager が署名したトークンは Verify できない", func(t *testing.T) {
-		other := newKeyManager(t)
+	t.Run("別の Manager が署名したトークンは Verify できない", func(t *testing.T) {
+		other := newManager(t)
 		tok, err := other.Sign(newFixedClaims())
 		if err != nil {
 			t.Fatalf("Sign() failed: %v", err)
 		}
-		if _, err := newKeyManager(t).Verify(tok.String()); !errors.Is(err, ErrUnknownKey) {
+		if _, err := newManager(t).Verify(tok.String()); !errors.Is(err, ErrUnknownKey) {
 			t.Errorf("Verify() error = %v, want ErrUnknownKey", err)
 		}
 	})
 
 	t.Run("期限切れは ErrExpired", func(t *testing.T) {
-		m := newKeyManager(t)
+		m := newManager(t)
 		tok, err := m.Sign(newFixedClaims())
 		if err != nil {
 			t.Fatalf("Sign() failed: %v", err)

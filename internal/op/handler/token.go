@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/HagaSpa/tegata/internal/jwt"
-	"github.com/HagaSpa/tegata/internal/op/auth"
+	"github.com/HagaSpa/tegata/internal/op/store"
 )
 
 const tokenTTL = time.Hour
@@ -19,7 +19,7 @@ type ClientAuthenticator interface {
 }
 
 type CodeConsumer interface {
-	Consume(code string) (*auth.Code, error)
+	Consume(code string) (*store.Code, error)
 }
 
 type Signer interface {
@@ -83,7 +83,7 @@ func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 
 	code, err := h.codes.Consume(r.PostFormValue("code"))
 	if err != nil {
-		if errors.Is(err, auth.ErrInvalidCode) {
+		if errors.Is(err, store.ErrInvalidCode) {
 			writeTokenError(w, http.StatusBadRequest, errInvalidGrant, "code is invalid")
 			return
 		} else {

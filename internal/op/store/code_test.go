@@ -1,4 +1,4 @@
-package auth
+package store
 
 import (
 	"errors"
@@ -11,18 +11,18 @@ import (
 
 var testBase = time.Date(2026, 9, 23, 12, 0, 0, 0, time.UTC)
 
-func newFixedStore(t *testing.T) *CodeStore {
+func newFixedCodes(t *testing.T) *Codes {
 	t.Helper()
-	s := NewCodeStore()
+	s := NewCodes()
 	s.now = func() time.Time { return testBase }
 	return s
 }
 
-func advance(s *CodeStore, d time.Duration) {
+func advance(s *Codes, d time.Duration) {
 	s.now = func() time.Time { return testBase.Add(d) }
 }
 
-func mustIssue(t *testing.T, s *CodeStore, sub string) string {
+func mustIssue(t *testing.T, s *Codes, sub string) string {
 	t.Helper()
 	key, err := s.Issue("client-1", "http://rp/cb", "openid", "challenge-1", "nonce-1", sub)
 	if err != nil {
@@ -31,9 +31,9 @@ func mustIssue(t *testing.T, s *CodeStore, sub string) string {
 	return key
 }
 
-func TestCodeStore(t *testing.T) {
+func TestCodes(t *testing.T) {
 	t.Run("発行した内容がそのまま取り出せる", func(t *testing.T) {
-		s := newFixedStore(t)
+		s := newFixedCodes(t)
 		key := mustIssue(t, s, "u-0001")
 
 		got, err := s.Consume(key)
@@ -55,7 +55,7 @@ func TestCodeStore(t *testing.T) {
 	})
 
 	t.Run("2 回目の消費は失敗する", func(t *testing.T) {
-		s := newFixedStore(t)
+		s := newFixedCodes(t)
 		key := mustIssue(t, s, "u-0001")
 
 		if _, err := s.Consume(key); err != nil {
@@ -71,7 +71,7 @@ func TestCodeStore(t *testing.T) {
 	})
 
 	t.Run("存在しないコードは失敗する", func(t *testing.T) {
-		s := newFixedStore(t)
+		s := newFixedCodes(t)
 
 		got, err := s.Consume("no-such-code")
 		if !errors.Is(err, ErrInvalidCode) {
@@ -94,7 +94,7 @@ func TestCodeStore(t *testing.T) {
 		}
 		for _, tc := range cases {
 			t.Run(tc.name, func(t *testing.T) {
-				s := newFixedStore(t)
+				s := newFixedCodes(t)
 				key := mustIssue(t, s, "u-0001")
 				advance(s, tc.elapsed)
 
@@ -110,7 +110,7 @@ func TestCodeStore(t *testing.T) {
 	})
 
 	t.Run("期限切れのコードも消費時に消える", func(t *testing.T) {
-		s := newFixedStore(t)
+		s := newFixedCodes(t)
 		key := mustIssue(t, s, "u-0001")
 		advance(s, 10*time.Minute)
 
@@ -124,7 +124,7 @@ func TestCodeStore(t *testing.T) {
 	})
 
 	t.Run("別のコードは互いに干渉しない", func(t *testing.T) {
-		s := newFixedStore(t)
+		s := newFixedCodes(t)
 		key1 := mustIssue(t, s, "u-0001")
 		key2 := mustIssue(t, s, "u-0002")
 		if key1 == key2 {
@@ -145,7 +145,7 @@ func TestCodeStore(t *testing.T) {
 	})
 
 	t.Run("コードは 43 文字の base64url", func(t *testing.T) {
-		s := newFixedStore(t)
+		s := newFixedCodes(t)
 		key := mustIssue(t, s, "u-0001")
 
 		if len(key) != 43 {
@@ -157,7 +157,7 @@ func TestCodeStore(t *testing.T) {
 	})
 
 	t.Run("同時に消費しても成功は 1 回だけ", func(t *testing.T) {
-		s := newFixedStore(t)
+		s := newFixedCodes(t)
 		key := mustIssue(t, s, "u-0001")
 
 		const workers = 16

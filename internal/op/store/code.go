@@ -1,4 +1,4 @@
-package auth
+package store
 
 import (
 	"crypto/rand"
@@ -21,20 +21,20 @@ type Code struct {
 	ExpiresAt     time.Time
 }
 
-type CodeStore struct {
+type Codes struct {
 	mu    sync.Mutex
 	codes map[string]*Code
 	now   func() time.Time
 }
 
-func NewCodeStore() *CodeStore {
-	return &CodeStore{
+func NewCodes() *Codes {
+	return &Codes{
 		codes: make(map[string]*Code),
 		now:   time.Now,
 	}
 }
 
-func (s *CodeStore) Issue(
+func (s *Codes) Issue(
 	clientID string,
 	redirectURI string,
 	scope string,
@@ -64,7 +64,7 @@ func (s *CodeStore) Issue(
 	return key, nil
 }
 
-func (s *CodeStore) Consume(key string) (*Code, error) {
+func (s *Codes) Consume(key string) (*Code, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	code := s.codes[key]

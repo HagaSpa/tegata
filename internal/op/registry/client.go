@@ -1,4 +1,4 @@
-package auth
+package registry
 
 import (
 	"crypto/subtle"
@@ -10,12 +10,12 @@ type Client struct {
 	RedirectURIs []string
 }
 
-type ClientStore struct {
+type Clients struct {
 	clients map[string]Client
 }
 
-func NewClientStore() *ClientStore {
-	return &ClientStore{
+func NewClients() *Clients {
+	return &Clients{
 		clients: map[string]Client{
 			"tegata-sample": {
 				Secret: "dummy-secret",
@@ -33,7 +33,7 @@ func NewClientStore() *ClientStore {
 	}
 }
 
-func (s *ClientStore) ValidateRedirectURI(clientID string, uri string) bool {
+func (s *Clients) ValidateRedirectURI(clientID string, uri string) bool {
 	c, ok := s.clients[clientID]
 	if !ok {
 		return false
@@ -41,7 +41,7 @@ func (s *ClientStore) ValidateRedirectURI(clientID string, uri string) bool {
 	return slices.Contains(c.RedirectURIs, uri)
 }
 
-func (s *ClientStore) Authenticate(clientID string, secret string) bool {
+func (s *Clients) Authenticate(clientID string, secret string) bool {
 	c, ok := s.clients[clientID]
 	if !ok {
 		return false

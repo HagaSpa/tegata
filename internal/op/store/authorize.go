@@ -1,4 +1,4 @@
-package auth
+package store
 
 import (
 	"crypto/rand"
@@ -23,20 +23,20 @@ type AuthorizeRequest struct {
 	ExpiresAt           time.Time
 }
 
-type AuthorizeRequestStore struct {
+type AuthorizeRequests struct {
 	mu       sync.Mutex
 	requests map[string]*AuthorizeRequest
 	now      func() time.Time
 }
 
-func NewAuthorizeRequestStore() *AuthorizeRequestStore {
-	return &AuthorizeRequestStore{
+func NewAuthorizeRequests() *AuthorizeRequests {
+	return &AuthorizeRequests{
 		requests: make(map[string]*AuthorizeRequest),
 		now:      time.Now,
 	}
 }
 
-func (s *AuthorizeRequestStore) Save(req *AuthorizeRequest) (string, error) {
+func (s *AuthorizeRequests) Save(req *AuthorizeRequest) (string, error) {
 	b := make([]byte, 32)
 	_, err := rand.Read(b)
 	if err != nil {
@@ -52,7 +52,7 @@ func (s *AuthorizeRequestStore) Save(req *AuthorizeRequest) (string, error) {
 	return key, nil
 }
 
-func (s *AuthorizeRequestStore) Find(key string) (*AuthorizeRequest, error) {
+func (s *AuthorizeRequests) Find(key string) (*AuthorizeRequest, error) {
 	req, err := s.lookup(key, false)
 	if err != nil {
 		return nil, err
@@ -60,7 +60,7 @@ func (s *AuthorizeRequestStore) Find(key string) (*AuthorizeRequest, error) {
 	return req, err
 }
 
-func (s *AuthorizeRequestStore) FindAndDelete(key string) (*AuthorizeRequest, error) {
+func (s *AuthorizeRequests) FindAndDelete(key string) (*AuthorizeRequest, error) {
 	req, err := s.lookup(key, true)
 	if err != nil {
 		return nil, err
@@ -68,7 +68,7 @@ func (s *AuthorizeRequestStore) FindAndDelete(key string) (*AuthorizeRequest, er
 	return req, err
 }
 
-func (s *AuthorizeRequestStore) lookup(key string, remove bool) (*AuthorizeRequest, error) {
+func (s *AuthorizeRequests) lookup(key string, remove bool) (*AuthorizeRequest, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	req := s.requests[key]
