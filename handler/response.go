@@ -7,16 +7,30 @@ import (
 	"net/url"
 )
 
+type errorCode string
+
+const (
+	errInvalidRequest          errorCode = "invalid_request"
+	errAccessDenied            errorCode = "access_denied"
+	errUnsupportedResponseType errorCode = "unsupported_response_type"
+	errInvalidScope            errorCode = "invalid_scope"
+	errServerError             errorCode = "server_error"
+	errInvalidClient           errorCode = "invalid_client"
+	errInvalidGrant            errorCode = "invalid_grant"
+	errUnsupportedGrantType    errorCode = "unsupported_grant_type"
+	errInvalidToken            errorCode = "invalid_token"
+)
+
 func redirectError(
 	w http.ResponseWriter,
 	r *http.Request,
 	redirectURI string,
-	errCode string,
+	code errorCode,
 	desc string,
 	state string,
 ) {
 	values := url.Values{}
-	values.Set("error", errCode)
+	values.Set("error", string(code))
 	values.Set("error_description", desc)
 	if state != "" {
 		values.Set("state", state)
@@ -53,28 +67,29 @@ type oauthErrorResponse struct {
 func oauthError(
 	w http.ResponseWriter,
 	status int,
-	code string,
+	code errorCode,
 	desc string,
 ) {
 	w.Header().Set("Cache-Control", "no-store")
 	v := oauthErrorResponse{
-		Error:       code,
+		Error:       string(code),
 		Description: desc,
 	}
 	writeJSON(w, status, v)
 }
 
-func bearerError(w http.ResponseWriter, code string) {
-	if code != "" {
-		w.Header().Set("WWW-Authenticate", fmt.Sprintf(`Bearer error="%s"`, code))
-	} else {
-		w.Header().Set("WWW-Authenticate", "Bearer")
-	}
-	http.Error(w, "invalid_token", http.StatusUnauthorized)
+func bearerError(w http.ResponseWriter, code errorCode) {
+	w.Header().Set("WWW-Authenticate", fmt.Sprintf(`Bearer error="%s"`, code))
+	http.Error(w, string(code), http.StatusUnauthorized)
+}
+
+func bearerErrorNoCode(w http.ResponseWriter) {
+	w.Header().Set("WWW-Authenticate", "Bearer")
+	http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 }
 
 func internalError(w http.ResponseWriter) {
-	http.Error(w, "internal_server_error", http.StatusInternalServerError)
+	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

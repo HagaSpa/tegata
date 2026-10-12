@@ -45,33 +45,33 @@ type userInfoResponse struct {
 func (h *UserInfoHandler) Get(w http.ResponseWriter, r *http.Request) {
 	ah := r.Header.Get("Authorization")
 	if ah == "" || len(strings.Fields(ah)) != 2 {
-		bearerError(w, "")
+		bearerErrorNoCode(w)
 		return
 	}
 	sl := strings.Fields(ah)
 	if !strings.EqualFold(sl[0], "Bearer") {
-		bearerError(w, "")
+		bearerErrorNoCode(w)
 		return
 	}
 
 	claim, err := h.verifier.Verify(sl[1])
 	if err != nil {
-		bearerError(w, "invalid_token")
+		bearerError(w, errInvalidToken)
 		return
 	}
 	if claim.Iss != h.issuer {
-		bearerError(w, "invalid_token")
+		bearerError(w, errInvalidToken)
 		return
 	}
 	if claim.Aud != h.issuer+"/userinfo" {
-		bearerError(w, "invalid_token")
+		bearerError(w, errInvalidToken)
 		return
 
 	}
 
 	user := h.finder.FindBySub(claim.Sub)
 	if user == nil {
-		bearerError(w, "invalid_token")
+		bearerError(w, errInvalidToken)
 		return
 	}
 

@@ -75,7 +75,7 @@ func (h *AuthorizeHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 	id, err := h.authReq.Save(req)
 	if err != nil {
-		redirectError(w, r, req.RedirectURI, "server_error", "faild to save authorize request", req.State)
+		redirectError(w, r, req.RedirectURI, errServerError, "failed to save authorize request", req.State)
 		return
 	}
 	param := templateParam{
@@ -94,7 +94,7 @@ func (h *AuthorizeHandler) Post(w http.ResponseWriter, r *http.Request) {
 	id := r.PostFormValue("id")
 	req, err := h.authReq.Find(id)
 	if err != nil {
-		http.Error(w, "faild to get authorize request", http.StatusBadRequest)
+		http.Error(w, "failed to get authorize request", http.StatusBadRequest)
 		return
 	}
 
@@ -127,11 +127,11 @@ func (h *AuthorizeHandler) Post(w http.ResponseWriter, r *http.Request) {
 
 	switch action {
 	case "deny":
-		redirectError(w, r, req.RedirectURI, "access_denied", "the user denied the request", req.State)
+		redirectError(w, r, req.RedirectURI, errAccessDenied, "the user denied the request", req.State)
 	case "approve":
 		code, err := h.code.Issue(req.ClientID, req.RedirectURI, req.Scope, req.CodeChallenge, req.Nonce, sub)
 		if err != nil {
-			redirectError(w, r, req.RedirectURI, "server_error", "failed to issue code", req.State)
+			redirectError(w, r, req.RedirectURI, errServerError, "failed to issue code", req.State)
 			return
 		}
 		values := url.Values{}
@@ -168,18 +168,18 @@ func parseAuthorizeRequest(v url.Values) *auth.AuthorizeRequest {
 	}
 }
 
-func validateAuthorizeRequest(r *auth.AuthorizeRequest) (string, string) {
+func validateAuthorizeRequest(r *auth.AuthorizeRequest) (errorCode, string) {
 	if r.ResponseType != "code" {
-		return "unsupported_response_type", "response_type needs code"
+		return errUnsupportedResponseType, "response_type needs code"
 	}
 	if !slices.Contains(strings.Fields(r.Scope), "openid") {
-		return "invalid_scope", "scope must contain openid"
+		return errInvalidScope, "scope must contain openid"
 	}
 	if r.CodeChallenge == "" {
-		return "invalid_request", "code_challenge is required"
+		return errInvalidRequest, "code_challenge is required"
 	}
 	if r.CodeChallengeMethod != "S256" {
-		return "invalid_request", "code_challenge_method needs S256"
+		return errInvalidRequest, "code_challenge_method needs S256"
 	}
 	return "", ""
 }
