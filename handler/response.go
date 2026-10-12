@@ -21,7 +21,7 @@ const (
 	errInvalidToken            errorCode = "invalid_token"
 )
 
-func redirectError(
+func redirectAuthorizationError(
 	w http.ResponseWriter,
 	r *http.Request,
 	redirectURI string,
@@ -35,10 +35,10 @@ func redirectError(
 	if state != "" {
 		values.Set("state", state)
 	}
-	redirectWith(w, r, redirectURI, values)
+	redirectToClient(w, r, redirectURI, values)
 }
 
-func redirectWith(
+func redirectToClient(
 	w http.ResponseWriter,
 	r *http.Request,
 	redirectURI string,
@@ -64,7 +64,7 @@ type oauthErrorResponse struct {
 	Description string `json:"error_description"`
 }
 
-func oauthError(
+func writeTokenError(
 	w http.ResponseWriter,
 	status int,
 	code errorCode,
@@ -78,24 +78,24 @@ func oauthError(
 	writeJSON(w, status, v)
 }
 
-func bearerError(w http.ResponseWriter, code errorCode) {
+func writeBearerError(w http.ResponseWriter, code errorCode) {
 	w.Header().Set("WWW-Authenticate", fmt.Sprintf(`Bearer error="%s"`, code))
 	http.Error(w, string(code), http.StatusUnauthorized)
 }
 
-func bearerErrorNoCode(w http.ResponseWriter) {
+func writeBearerChallenge(w http.ResponseWriter) {
 	w.Header().Set("WWW-Authenticate", "Bearer")
 	http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 }
 
-func internalError(w http.ResponseWriter) {
+func writeInternalError(w http.ResponseWriter) {
 	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	b, err := json.Marshal(v)
 	if err != nil {
-		internalError(w)
+		writeInternalError(w)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")

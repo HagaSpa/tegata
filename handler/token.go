@@ -58,7 +58,7 @@ type tokenResponse struct {
 
 func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
-		oauthError(w, http.StatusBadRequest, errInvalidRequest, "parse failed")
+		writeTokenError(w, http.StatusBadRequest, errInvalidRequest, "parse failed")
 		return
 	}
 
@@ -71,31 +71,31 @@ func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 		if ok {
 			w.Header().Set("WWW-Authenticate", "Basic realm=\"tegata\"")
 		}
-		oauthError(w, http.StatusUnauthorized, errInvalidClient, "client_id or client_secret is invalid")
+		writeTokenError(w, http.StatusUnauthorized, errInvalidClient, "client_id or client_secret is invalid")
 		return
 	}
 
 	if r.PostFormValue("grant_type") != "authorization_code" {
-		oauthError(w, http.StatusBadRequest, errUnsupportedGrantType, "grant_type is unsupported")
+		writeTokenError(w, http.StatusBadRequest, errUnsupportedGrantType, "grant_type is unsupported")
 		return
 	}
 
 	code, err := h.codes.Consume(r.PostFormValue("code"))
 	if err != nil {
 		if errors.Is(err, auth.ErrInvalidCode) {
-			oauthError(w, http.StatusBadRequest, errInvalidGrant, "code is invalid")
+			writeTokenError(w, http.StatusBadRequest, errInvalidGrant, "code is invalid")
 			return
 		} else {
-			oauthError(w, http.StatusInternalServerError, errServerError, "failed to consume code")
+			writeTokenError(w, http.StatusInternalServerError, errServerError, "failed to consume code")
 			return
 		}
 	}
 	if code.ClientID != user {
-		oauthError(w, http.StatusBadRequest, errInvalidGrant, "client_id is invalid")
+		writeTokenError(w, http.StatusBadRequest, errInvalidGrant, "client_id is invalid")
 		return
 	}
 	if code.RedirectURI != r.PostFormValue("redirect_uri") {
-		oauthError(w, http.StatusBadRequest, errInvalidGrant, "redirect_uri is invalid")
+		writeTokenError(w, http.StatusBadRequest, errInvalidGrant, "redirect_uri is invalid")
 		return
 	}
 
@@ -103,7 +103,7 @@ func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 	sum := sha256.Sum256([]byte(r.PostFormValue("code_verifier")))
 	got := base64.RawURLEncoding.EncodeToString(sum[:])
 	if subtle.ConstantTimeCompare([]byte(got), []byte(code.CodeChallenge)) != 1 {
-		oauthError(w, http.StatusBadRequest, errInvalidGrant, "code_verifier is invalid")
+		writeTokenError(w, http.StatusBadRequest, errInvalidGrant, "code_verifier is invalid")
 		return
 	}
 
@@ -116,7 +116,7 @@ func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 		Nonce: code.Nonce,
 	})
 	if err != nil {
-		oauthError(w, http.StatusInternalServerError, errServerError, "failed to sign id_token")
+		writeTokenError(w, http.StatusInternalServerError, errServerError, "failed to sign id_token")
 		return
 	}
 	access, err := h.signer.Sign(&auth.Claim{
@@ -128,7 +128,7 @@ func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 		Scope: code.Scope,
 	})
 	if err != nil {
-		oauthError(w, http.StatusInternalServerError, errServerError, "failed to sign access_token")
+		writeTokenError(w, http.StatusInternalServerError, errServerError, "failed to sign access_token")
 		return
 	}
 
