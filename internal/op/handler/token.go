@@ -127,10 +127,13 @@ func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 		writeTokenError(w, http.StatusInternalServerError, errServerError, "failed to sign id_token")
 		return
 	}
+
+	aud := jwt.Audience{h.issuer + "/userinfo"}
+	aud = append(aud, h.resolver.Audiences(code.Scope)...)
 	access, err := h.signer.Sign(&jwt.Claims{
 		Iss:   h.issuer,
 		Sub:   code.Sub,
-		Aud:   jwt.Audience{h.issuer + "/userinfo"},
+		Aud:   aud,
 		Iat:   now.Unix(),
 		Exp:   now.Add(tokenTTL).Unix(),
 		Scope: code.Scope,
