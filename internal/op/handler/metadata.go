@@ -42,7 +42,7 @@ func newOpenIDConfiguration(issuer string) *openIDConfiguration {
 		ResponseTypesSupported:            []string{"code"},
 		SubjectTypesSupported:             []string{"public"},
 		IdTokenSigningAlgValuesSupported:  []string{"RS256"},
-		ScopesSupported:                   []string{"openid"},
+		ScopesSupported:                   []string{"openid", "notes.read", "notes.write"},
 		TokenEndpointAuthMethodsSupported: []string{"client_secret_post", "client_secret_basic"},
 		CodeChallengeMethodsSupported:     []string{"S256"},
 	}
