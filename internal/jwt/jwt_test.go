@@ -40,7 +40,7 @@ func newFixedClaims() *Claims {
 	return &Claims{
 		Iss:   "http://localhost:8080",
 		Sub:   "u-0001",
-		Aud:   "tegata-sample",
+		Aud:   Audience{"tegata-sample"},
 		Iat:   testBase.Unix(),
 		Exp:   testBase.Add(time.Hour).Unix(),
 		Nonce: "EVKOT75CSF4I56CBZW",
@@ -102,7 +102,7 @@ func TestSign(t *testing.T) {
 		if err := json.Unmarshal(dec, &got); err != nil {
 			t.Fatalf("Unmarshal failed: %v", err)
 		}
-		if got != *claims {
+		if !reflect.DeepEqual(got, *claims) {
 			t.Errorf("payload = %+v, want %+v", got, *claims)
 		}
 	})

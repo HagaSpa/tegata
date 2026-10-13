@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 )
@@ -16,13 +17,13 @@ import (
 var ErrExpired = errors.New("expired")
 
 type Claims struct {
-	Iss   string `json:"iss"`
-	Sub   string `json:"sub"`
-	Aud   string `json:"aud"`
-	Iat   int64  `json:"iat"`
-	Exp   int64  `json:"exp"`
-	Nonce string `json:"nonce,omitempty"`
-	Scope string `json:"scope,omitempty"`
+	Iss   string   `json:"iss"`
+	Sub   string   `json:"sub"`
+	Aud   Audience `json:"aud"`
+	Iat   int64    `json:"iat"`
+	Exp   int64    `json:"exp"`
+	Nonce string   `json:"nonce,omitempty"`
+	Scope string   `json:"scope,omitempty"`
 }
 
 type Token struct {
@@ -112,4 +113,33 @@ func Verify(token string, keyFor KeyFunc, now time.Time) (*Claims, error) {
 		return nil, ErrExpired
 	}
 	return &c, nil
+}
+
+type Audience []string
+
+func (a Audience) MarshalJSON() ([]byte, error) {
+	if len(a) == 1 {
+		return json.Marshal(a[0])
+	}
+	return json.Marshal([]string(a))
+}
+
+func (a *Audience) UnmarshalJSON(data []byte) error {
+	var sl []string
+	err := json.Unmarshal(data, &sl)
+	if err == nil {
+		*a = Audience(sl)
+		return nil
+	}
+	var s string
+	err = json.Unmarshal(data, &s)
+	if err == nil {
+		*a = Audience{s}
+		return nil
+	}
+	return fmt.Errorf("faild to Unmarshal Audience: %w", err)
+}
+
+func (a Audience) Contains(s string) bool {
+	return slices.Contains(a, s)
 }

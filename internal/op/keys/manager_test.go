@@ -24,7 +24,7 @@ func newFixedClaims() *jwt.Claims {
 	return &jwt.Claims{
 		Iss: "http://localhost:8080",
 		Sub: "u-0001",
-		Aud: "tegata-sample",
+		Aud: jwt.Audience{"tegata-sample"},
 		Iat: testBase.Unix(),
 		Exp: testBase.Add(time.Hour).Unix(),
 	}

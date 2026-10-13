@@ -49,7 +49,7 @@ func accessClaims(scope string) *jwt.Claims {
 	return &jwt.Claims{
 		Iss:   testIssuer,
 		Sub:   "u-0001",
-		Aud:   testIssuer + "/userinfo",
+		Aud:   jwt.Audience{testIssuer + "/userinfo"},
 		Iat:   now.Unix(),
 		Exp:   now.Add(tokenTTL).Unix(),
 		Scope: scope,
@@ -67,7 +67,7 @@ func TestUserInfoHandler_Get_Errors(t *testing.T) {
 	expired := signToken(t, km, expiredClaims)
 
 	invAudClaims := accessClaims("openid")
-	invAudClaims.Aud = "tegata-sample"
+	invAudClaims.Aud = jwt.Audience{"tegata-sample"}
 	invAud := signToken(t, km, invAudClaims)
 
 	invIssClaims := accessClaims("openid")

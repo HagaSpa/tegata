@@ -111,7 +111,7 @@ func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 	idToken, err := h.signer.Sign(&jwt.Claims{
 		Iss:   h.issuer,
 		Sub:   code.Sub,
-		Aud:   user,
+		Aud:   jwt.Audience{user},
 		Iat:   now.Unix(),
 		Exp:   now.Add(tokenTTL).Unix(),
 		Nonce: code.Nonce,
@@ -123,7 +123,7 @@ func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 	access, err := h.signer.Sign(&jwt.Claims{
 		Iss:   h.issuer,
 		Sub:   code.Sub,
-		Aud:   h.issuer + "/userinfo",
+		Aud:   jwt.Audience{h.issuer + "/userinfo"},
 		Iat:   now.Unix(),
 		Exp:   now.Add(tokenTTL).Unix(),
 		Scope: code.Scope,

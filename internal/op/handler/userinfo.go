@@ -60,10 +60,9 @@ func (h *UserInfoHandler) Get(w http.ResponseWriter, r *http.Request) {
 		bearer.WriteError(w, bearer.InvalidToken)
 		return
 	}
-	if claim.Aud != h.issuer+"/userinfo" {
+	if !claim.Aud.Contains(h.issuer + "/userinfo") {
 		bearer.WriteError(w, bearer.InvalidToken)
 		return
-
 	}
 
 	user := h.finder.FindBySub(claim.Sub)
