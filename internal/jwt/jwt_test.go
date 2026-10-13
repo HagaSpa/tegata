@@ -174,3 +174,27 @@ func TestVerify(t *testing.T) {
 		}
 	})
 }
+
+func TestAudience_MarshalJSON(t *testing.T) {
+	tests := []struct {
+		name    string
+		in      Audience
+		want    string
+		wantNil bool
+	}{
+		{"Audience が1つ", Audience{"a"}, `"a"`, false},
+		{"Audience が2つ", Audience{"a", "b"}, `["a","b"]`, false},
+		{"nil でも落ちない", nil, "", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, gotErr := json.Marshal(tt.in)
+			if gotErr != nil {
+				t.Fatalf("MarshalJSON() failed: %v", gotErr)
+			}
+			if tt.wantNil && string(got) != tt.want {
+				t.Fatalf("got = %v, want = %v", gotErr, tt.want)
+			}
+		})
+	}
+}
