@@ -19,7 +19,7 @@ func NewResource() *Resources {
 		resources: []Resource{
 			{
 				Identifier: "http://localhost:9000",
-				Scopes:     []string{"note.read", "note.write"},
+				Scopes:     []string{"notes.read", "notes.write"},
 			},
 		},
 	}
