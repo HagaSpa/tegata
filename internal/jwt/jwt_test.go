@@ -177,24 +177,71 @@ func TestVerify(t *testing.T) {
 
 func TestAudience_MarshalJSON(t *testing.T) {
 	tests := []struct {
-		name    string
-		in      Audience
-		want    string
-		wantNil bool
+		name string
+		in   Audience
+		want string
 	}{
-		{"Audience が1つ", Audience{"a"}, `"a"`, false},
-		{"Audience が2つ", Audience{"a", "b"}, `["a","b"]`, false},
-		{"nil でも落ちない", nil, "", false},
+		{"Audience が1つ", Audience{"a"}, `"a"`},
+		{"Audience が2つ", Audience{"a", "b"}, `["a","b"]`},
+		{"nil でも落ちない", nil, `null`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, gotErr := json.Marshal(tt.in)
-			if gotErr != nil {
-				t.Fatalf("MarshalJSON() failed: %v", gotErr)
+			got, err := json.Marshal(tt.in)
+			if err != nil {
+				t.Fatalf("MarshalJSON() failed: %v", err)
 			}
-			if tt.wantNil && string(got) != tt.want {
-				t.Fatalf("got = %v, want = %v", gotErr, tt.want)
+			if string(got) != tt.want {
+				t.Errorf("got = %s, want = %s", got, tt.want)
 			}
 		})
 	}
+}
+
+func TestAudience_UnmarshalJSON(t *testing.T) {
+	tests := []struct {
+		name    string
+		in      string
+		want    Audience
+		wantErr bool
+	}{
+		{"文字列の場合", `"a"`, Audience{"a"}, false},
+		{"スライスの場合", `["a","b"]`, Audience{"a", "b"}, false},
+		{"1要素の配列も読める", `["a"]`, Audience{"a"}, false},
+		{"数値はエラー", `1`, nil, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var got Audience
+			err := json.Unmarshal([]byte(tt.in), &got)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("UnmarshalJSON() = %v, want error", got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("UnmarshalJSON() failed: %v", err)
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("got = %v, want = %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestAudience_Contains(t *testing.T) {
+	aud := Audience{"a", "b"}
+
+	t.Run("含むとき true", func(t *testing.T) {
+		if !aud.Contains("b") {
+			t.Errorf("Contains(b) = false, want true")
+		}
+	})
+
+	t.Run("含まないとき false", func(t *testing.T) {
+		if aud.Contains("c") {
+			t.Errorf("Contains(c) = true, want false")
+		}
+	})
 }
