@@ -38,7 +38,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to init user store: %v", err)
 	}
-	r := registry.NewResource()
+	r := registry.NewResources()
 
 	co := store.NewCodes()
 	ar := store.NewAuthorizeRequests()

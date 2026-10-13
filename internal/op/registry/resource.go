@@ -14,7 +14,7 @@ type Resources struct {
 	resources []Resource
 }
 
-func NewResource() *Resources {
+func NewResources() *Resources {
 	return &Resources{
 		resources: []Resource{
 			{

@@ -28,7 +28,7 @@ func newTokenHandler(t *testing.T) (*TokenHandler, *store.Codes) {
 		t.Fatal(err)
 	}
 	co := store.NewCodes()
-	r := registry.NewResource()
+	r := registry.NewResources()
 	return NewTokenHandler(registry.NewClients(), co, km, r, testIssuer), co
 }
 
