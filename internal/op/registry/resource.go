@@ -1,6 +1,9 @@
 package registry
 
-import "slices"
+import (
+	"slices"
+	"strings"
+)
 
 type Resource struct {
 	Identifier string
@@ -24,8 +27,11 @@ func NewResource() *Resources {
 
 func (r *Resources) Audiences(scope string) []string {
 	var ids []string
+	sc := strings.Fields(scope)
 	for _, v := range r.resources {
-		if slices.Contains(v.Scopes, scope) {
+		if slices.ContainsFunc(sc, func(s string) bool {
+			return slices.Contains(v.Scopes, s)
+		}) {
 			ids = append(ids, v.Identifier)
 		}
 	}
