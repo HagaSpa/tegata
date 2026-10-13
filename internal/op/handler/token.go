@@ -26,26 +26,33 @@ type Signer interface {
 	Sign(*jwt.Claims) (*jwt.Token, error)
 }
 
+type AudienceResolver interface {
+	Audiences(scope string) []string
+}
+
 type TokenHandler struct {
-	client ClientAuthenticator
-	codes  CodeConsumer
-	signer Signer
-	issuer string
-	now    func() time.Time
+	client   ClientAuthenticator
+	codes    CodeConsumer
+	signer   Signer
+	issuer   string
+	resolver AudienceResolver
+	now      func() time.Time
 }
 
 func NewTokenHandler(
 	client ClientAuthenticator,
 	codes CodeConsumer,
 	signer Signer,
+	resolver AudienceResolver,
 	issuer string,
 ) *TokenHandler {
 	return &TokenHandler{
-		client: client,
-		codes:  codes,
-		signer: signer,
-		issuer: issuer,
-		now:    time.Now,
+		client:   client,
+		codes:    codes,
+		signer:   signer,
+		issuer:   issuer,
+		resolver: resolver,
+		now:      time.Now,
 	}
 }
 

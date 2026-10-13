@@ -38,6 +38,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to init user store: %v", err)
 	}
+	r := registry.NewResource()
 
 	co := store.NewCodes()
 	ar := store.NewAuthorizeRequests()
@@ -45,7 +46,7 @@ func main() {
 	jwksHandler := handler.NewJWKHandler(km)
 	metadataHandler := handler.NewMetadataHandler(issuer)
 	authHandler := handler.NewAuthorizeHandler(cl, u, co, ar)
-	tokenHandler := handler.NewTokenHandler(cl, co, km, issuer)
+	tokenHandler := handler.NewTokenHandler(cl, co, km, r, issuer)
 	useinfoHandler := handler.NewUserInfofHandler(km, u, issuer)
 
 	mux := http.NewServeMux()

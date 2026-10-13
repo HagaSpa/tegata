@@ -28,7 +28,8 @@ func newTokenHandler(t *testing.T) (*TokenHandler, *store.Codes) {
 		t.Fatal(err)
 	}
 	co := store.NewCodes()
-	return NewTokenHandler(registry.NewClients(), co, km, testIssuer), co
+	r := registry.NewResource()
+	return NewTokenHandler(registry.NewClients(), co, km, r, testIssuer), co
 }
 
 func challengeOf(verifier string) string {
