@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source "$(dirname "$0")/lib.sh"
+
+CALLBACK="http://localhost:9999/callback"
+USERINFO_AUD="$BASE/userinfo"
+RS_AUD="http://localhost:9000"
+CHALLENGE="E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+VERIFIER="dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+
+if ! command -v jq >/dev/null; then
+  echo "jq is required" >&2
+  exit 1
+fi
+
+get_tokens() {
+  local query="client_id=tegata-sample&redirect_uri=${CALLBACK}&response_type=code&scope=$1&state=smoke-state&nonce=smoke-nonce&code_challenge=${CHALLENGE}&code_challenge_method=S256"
+  local id code
+  id=$(curl -fsS "$BASE/authorize?$query" | sed -n 's/.*name="id" value="\([^"]*\)".*/\1/p')
+  code=$(curl -sS -o /dev/null -w '%{redirect_url}' -d "id=$id&username=username&password=password&action=approve" "$BASE/authorize" | sed -n 's/.*code=\([^&]*\).*/\1/p')
+  curl -sS -u tegata-sample:dummy-secret \
+    -d "grant_type=authorization_code&code=$code&redirect_uri=$CALLBACK&code_verifier=$VERIFIER" \
+    "$BASE/token"
+}
+
+segment() {
+  jq -cR "split(\".\")[$1] | gsub(\"-\";\"+\") | gsub(\"_\";\"/\") | @base64d | fromjson"
+}
+
+claim() {
+  segment 1 <<<"$1" | jq -c ".$2"
+}
+
+userinfo_status() {
+  curl -sS -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $1" "$BASE/userinfo"
+}
+
+require_server
+
+check_eq "Discovery: scopes_supported に notes.* がある" \
+  "$(curl -fsS "$BASE/.well-known/openid-configuration" | jq -c .scopes_supported)" \
+  '["openid","notes.read","notes.write"]'
+
+check_scope() {
+  local scope=$1 want_aud=$2
+  local res at it
+  res=$(get_tokens "$scope")
+  at=$(jq -r .access_token <<<"$res")
+  it=$(jq -r .id_token <<<"$res")
+  local label="scope=${scope//%20/ }"
+
+  check_eq "$label: アクセストークンの aud" "$(claim "$at" aud)" "$want_aud"
+  check_eq "$label: アクセストークンの typ は JWT" "$(segment 0 <<<"$at" | jq -c .typ)" '"JWT"'
+  check_eq "$label: ID トークンの aud は client_id のまま" "$(claim "$it" aud)" '"tegata-sample"'
+  check_eq "$label: userinfo はアクセストークンで 200" "$(userinfo_status "$at")" 200
+  check_eq "$label: userinfo は ID トークンで 401" "$(userinfo_status "$it")" 401
+}
+
+check_scope "openid" "\"$USERINFO_AUD\""
+check_scope "openid%20notes.read" "[\"$USERINFO_AUD\",\"$RS_AUD\"]"
+check_scope "openid%20notes.read%20notes.write" "[\"$USERINFO_AUD\",\"$RS_AUD\"]"
+
+finish

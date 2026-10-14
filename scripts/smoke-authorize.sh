@@ -1,23 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BASE="${BASE:-http://localhost:8080}"
+source "$(dirname "$0")/lib.sh"
+
 CALLBACK="http://localhost:9999/callback"
 STATE="smoke-state"
 QUERY="client_id=tegata-sample&redirect_uri=${CALLBACK}&response_type=code&scope=openid&state=${STATE}&nonce=smoke-nonce&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256"
 LOGIN="username=username&password=password"
-
-failures=0
-
-check() {
-  local name=$1 got=$2 pattern=$3
-  if [[ $got =~ $pattern ]]; then
-    printf 'PASS  %s\n' "$name"
-  else
-    printf 'FAIL  %s\n      got:  %s\n      want: %s\n' "$name" "$got" "$pattern"
-    failures=$((failures + 1))
-  fi
-}
 
 login_page() {
   curl -fsS "$BASE/authorize?$QUERY"
@@ -31,10 +20,7 @@ post() {
   curl -sS -o /dev/null -w '%{http_code} %{redirect_url}' -d "$1" "$BASE/authorize"
 }
 
-if ! curl -fsS -o /dev/null "$BASE/"; then
-  echo "server is not reachable at $BASE (start it with: mise serve)" >&2
-  exit 1
-fi
+require_server
 
 page=$(login_page)
 check "GET: hidden は 1 個だけ" "$(grep -c 'type="hidden"' <<<"$page")" '^1$'
@@ -62,8 +48,4 @@ id=$(new_id)
 check "フォームの redirect_uri は無視する" \
   "$(post "id=$id&redirect_uri=http://evil/cb&$LOGIN&action=approve")" "^302 $CALLBACK\\?code="
 
-if ((failures > 0)); then
-  echo "$failures check(s) failed" >&2
-  exit 1
-fi
-echo "all checks passed"
+finish
