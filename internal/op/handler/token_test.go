@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -232,5 +233,43 @@ func TestTokenHandler_Post_OmitsNonceWhenAbsent(t *testing.T) {
 	idToken, _ := decodeJSON(t, rec)["id_token"].(string)
 	if _, ok := decodePayload(t, idToken)["nonce"]; ok {
 		t.Errorf("id_token must omit nonce when the request had none")
+	}
+}
+
+func TestTokenHandler_Post_AccessTokenAudience(t *testing.T) {
+	const rs = "http://localhost:9000"
+	tests := []struct {
+		name    string
+		scope   string
+		wantAud any
+	}{
+		{"openid だけなら文字列", "openid", testIssuer + "/userinfo"},
+		{"notes.read なら文字列", "openid notes.read", []any{testIssuer + "/userinfo", rs}},
+		{"read と write の両方でも RS は 1回", "openid notes.read notes.write", []any{testIssuer + "/userinfo", rs}},
+	}
+
+	h, codes := newTokenHandler(t)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			code := issueCode(t, codes, tt.scope, testVerifier, testNonce)
+			rec := postToken(h, validTokenForm(code), false)
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status = %d, want 200 (body %q)", rec.Code, rec.Body.String())
+			}
+			body := decodeJSON(t, rec)
+			if body["scope"] != tt.scope {
+				t.Errorf("scope = %v, want %q", body["scope"], tt.scope)
+			}
+
+			accessToken, _ := body["access_token"].(string)
+			if got := decodePayload(t, accessToken)["aud"]; !reflect.DeepEqual(got, tt.wantAud) {
+				t.Errorf("access_token aud = %#v, want %q", got, tt.wantAud)
+			}
+
+			idToken, _ := body["id_token"].(string)
+			if got := decodePayload(t, idToken)["aud"]; got != "tegata-sample" {
+				t.Errorf("id_token aud = %#v, want %q", got, "tegata-sample")
+			}
+		})
 	}
 }
