@@ -56,11 +56,21 @@ func accessClaims(scope string) *jwt.Claims {
 	}
 }
 
+func accessMultipleAudClaims(scope string, aud jwt.Audience) *jwt.Claims {
+	now := time.Now()
+	return &jwt.Claims{
+		Iss:   testIssuer,
+		Sub:   "u-0001",
+		Aud:   aud,
+		Iat:   now.Unix(),
+		Exp:   now.Add(tokenTTL).Unix(),
+		Scope: scope,
+	}
+}
+
 func TestUserInfoHandler_Get_Errors(t *testing.T) {
 	h, km := newUserInfoHandler(t)
 	now := time.Now()
-	// valid := signToken(t, km, accessClaims("openid"))
-	// full := signToken(t, km, accessClaims("openid profile email"))
 
 	expiredClaims := accessClaims("openid")
 	expiredClaims.Exp = now.Add(-time.Hour).Unix()
@@ -78,6 +88,8 @@ func TestUserInfoHandler_Get_Errors(t *testing.T) {
 	invSubClaims.Sub = "u-9999"
 	invSub := signToken(t, km, invSubClaims)
 
+	invMultipleClaims := signToken(t, km, accessMultipleAudClaims("openid", jwt.Audience{"http://localhost:9000"}))
+
 	cases := []struct {
 		name         string
 		authoriation string
@@ -91,6 +103,7 @@ func TestUserInfoHandler_Get_Errors(t *testing.T) {
 		{"Aud が異なる", "Bearer " + invAud, 401, `Bearer error="invalid_token"`},
 		{"Iss が異なる", "Bearer " + invIss, 401, `Bearer error="invalid_token"`},
 		{"Sub が異なる", "Bearer " + invSub, 401, `Bearer error="invalid_token"`},
+		{"RS 宛でだけのトークン", "Bearer " + invMultipleClaims, 401, `Bearer error="invalid_token"`},
 	}
 
 	for _, tc := range cases {
@@ -111,6 +124,11 @@ func TestUserInfoHandler_Get_Success(t *testing.T) {
 	h, km := newUserInfoHandler(t)
 	valid := signToken(t, km, accessClaims("openid"))
 	full := signToken(t, km, accessClaims("openid profile email"))
+	multipleAud := signToken(
+		t,
+		km,
+		accessMultipleAudClaims("openid profile email", jwt.Audience{testIssuer + "/userinfo", "http://localhost:9000"}),
+	)
 
 	t.Run("openid のみ", func(t *testing.T) {
 		rec := getUserInfo(h, "Bearer "+valid)
@@ -163,6 +181,21 @@ func TestUserInfoHandler_Get_Success(t *testing.T) {
 		}
 		if m["email_verified"] != true {
 			t.Errorf("valid.email_verified = %s", m["email_verified"])
+		}
+	})
+
+	t.Run("aud が配列の場合でも通る", func(t *testing.T) {
+		rec := getUserInfo(h, "Bearer "+multipleAud)
+		if rec.Code != 200 {
+			t.Errorf("status = %d, want %d (body: %s)", rec.Code, 200, rec.Body.String())
+		}
+
+		m := map[string]any{}
+		if err := json.Unmarshal(rec.Body.Bytes(), &m); err != nil {
+			t.Fatalf("Decode failed: %v (Body: %s)", err, rec.Body.String())
+		}
+		if m["sub"] != "u-0001" {
+			t.Errorf("valid.sub = %s, want %s", m["sub"], "u-0001")
 		}
 	})
 }
