@@ -56,65 +56,41 @@ func accessClaims(scope string) *jwt.Claims {
 	}
 }
 
-func accessMultipleAudClaims(scope string, aud jwt.Audience) *jwt.Claims {
-	now := time.Now()
-	return &jwt.Claims{
-		Iss:   testIssuer,
-		Sub:   "u-0001",
-		Aud:   aud,
-		Iat:   now.Unix(),
-		Exp:   now.Add(tokenTTL).Unix(),
-		Scope: scope,
-	}
-}
-
 func TestUserInfoHandler_Get_Errors(t *testing.T) {
+	const invalidToken = `Bearer error="invalid_token"`
 	h, km := newUserInfoHandler(t)
-	now := time.Now()
-
-	expiredClaims := accessClaims("openid")
-	expiredClaims.Exp = now.Add(-time.Hour).Unix()
-	expired := signToken(t, km, expiredClaims)
-
-	invAudClaims := accessClaims("openid")
-	invAudClaims.Aud = jwt.Audience{"tegata-sample"}
-	invAud := signToken(t, km, invAudClaims)
-
-	invIssClaims := accessClaims("openid")
-	invIssClaims.Iss = "http://evil"
-	invIss := signToken(t, km, invIssClaims)
-
-	invSubClaims := accessClaims("openid")
-	invSubClaims.Sub = "u-9999"
-	invSub := signToken(t, km, invSubClaims)
-
-	invMultipleClaims := signToken(t, km, accessMultipleAudClaims("openid", jwt.Audience{"http://localhost:9000"}))
 
 	cases := []struct {
-		name         string
-		authoriation string
-		wantStatus   int
-		wantWWWWAuth string
+		name        string
+		header      string
+		mutate      func(c *jwt.Claims)
+		wantWWWAuth string
 	}{
-		{"ヘッダなし", "", 401, "Bearer"},
-		{"schema 違い", "Basic dgVzdA==", 401, `Bearer`},
-		{"形になっていない", "Bearer x", 401, `Bearer error="invalid_token"`},
-		{"期限切れ", "Bearer " + expired, 401, `Bearer error="invalid_token"`},
-		{"Aud が異なる", "Bearer " + invAud, 401, `Bearer error="invalid_token"`},
-		{"Iss が異なる", "Bearer " + invIss, 401, `Bearer error="invalid_token"`},
-		{"Sub が異なる", "Bearer " + invSub, 401, `Bearer error="invalid_token"`},
-		{"RS 宛でだけのトークン", "Bearer " + invMultipleClaims, 401, `Bearer error="invalid_token"`},
+		{name: "ヘッダなし", wantWWWAuth: "Bearer"},
+		{name: "scheme 違い", header: "Basic dGVzdA==", wantWWWAuth: "Bearer"},
+		{name: "形になっていない", header: "Bearer x", wantWWWAuth: invalidToken},
+		{name: "期限切れ", mutate: func(c *jwt.Claims) { c.Exp = time.Now().Add(-time.Hour).Unix() }, wantWWWAuth: invalidToken},
+		{name: "aud が client_id（ID トークンと同じ形）", mutate: func(c *jwt.Claims) { c.Aud = jwt.Audience{"tegata-sample"} }, wantWWWAuth: invalidToken},
+		{name: "aud が RS 宛てだけ", mutate: func(c *jwt.Claims) { c.Aud = jwt.Audience{"http://localhost:9000"} }, wantWWWAuth: invalidToken},
+		{name: "iss が異なる", mutate: func(c *jwt.Claims) { c.Iss = "http://evil" }, wantWWWAuth: invalidToken},
+		{name: "sub が存在しない", mutate: func(c *jwt.Claims) { c.Sub = "u-9999" }, wantWWWAuth: invalidToken},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			rec := getUserInfo(h, tc.authoriation)
-			if rec.Code != tc.wantStatus {
-				t.Errorf("status = %d, want %d (body %q)", rec.Code, tc.wantStatus, rec.Body.String())
+			header := tc.header
+			if tc.mutate != nil {
+				c := accessClaims("openid")
+				tc.mutate(c)
+				header = "Bearer " + signToken(t, km, c)
 			}
-			wwwAuth := rec.Header().Get("WWW-Authenticate")
-			if wwwAuth != tc.wantWWWWAuth {
-				t.Errorf("rec.header WWW-Authenticate = %s, wand = %s", wwwAuth, tc.wantWWWWAuth)
+
+			rec := getUserInfo(h, header)
+			if rec.Code != http.StatusUnauthorized {
+				t.Errorf("status = %d, want 401 (body %q)", rec.Code, rec.Body.String())
+			}
+			if got := rec.Header().Get("WWW-Authenticate"); got != tc.wantWWWAuth {
+				t.Errorf("WWW-Authenticate = %q, want %q", got, tc.wantWWWAuth)
 			}
 		})
 	}
@@ -124,11 +100,9 @@ func TestUserInfoHandler_Get_Success(t *testing.T) {
 	h, km := newUserInfoHandler(t)
 	valid := signToken(t, km, accessClaims("openid"))
 	full := signToken(t, km, accessClaims("openid profile email"))
-	multipleAud := signToken(
-		t,
-		km,
-		accessMultipleAudClaims("openid profile email", jwt.Audience{testIssuer + "/userinfo", "http://localhost:9000"}),
-	)
+	multipleAudClaims := accessClaims("openid profile email")
+	multipleAudClaims.Aud = jwt.Audience{testIssuer + "/userinfo", "http://localhost:9000"}
+	multipleAud := signToken(t, km, multipleAudClaims)
 
 	t.Run("openid のみ", func(t *testing.T) {
 		rec := getUserInfo(h, "Bearer "+valid)
