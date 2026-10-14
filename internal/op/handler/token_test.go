@@ -37,9 +37,9 @@ func challengeOf(verifier string) string {
 	return base64.RawURLEncoding.EncodeToString(sum[:])
 }
 
-func issueCode(t *testing.T, codes *store.Codes, verifier, nonce string) string {
+func issueCode(t *testing.T, codes *store.Codes, scope, verifier, nonce string) string {
 	t.Helper()
-	code, err := codes.Issue("tegata-sample", "http://localhost:9999/callback", "openid", challengeOf(verifier), nonce, "u-0001")
+	code, err := codes.Issue("tegata-sample", "http://localhost:9999/callback", scope, challengeOf(verifier), nonce, "u-0001")
 	if err != nil {
 		t.Fatalf("Issue() failed: %v", err)
 	}
@@ -134,7 +134,7 @@ func TestTokenHandler_Post(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			f := validTokenForm(issueCode(t, codes, testVerifier, testNonce))
+			f := validTokenForm(issueCode(t, codes, "openid", testVerifier, testNonce))
 			if tc.mutate != nil {
 				tc.mutate(f)
 			}
@@ -192,7 +192,7 @@ func TestTokenHandler_Post(t *testing.T) {
 
 func TestTokenHandler_Post_CodeIsSingleUse(t *testing.T) {
 	h, codes := newTokenHandler(t)
-	code := issueCode(t, codes, testVerifier, testNonce)
+	code := issueCode(t, codes, "openid", testVerifier, testNonce)
 
 	first := postToken(h, validTokenForm(code), false)
 	second := postToken(h, validTokenForm(code), false)
@@ -207,7 +207,7 @@ func TestTokenHandler_Post_CodeIsSingleUse(t *testing.T) {
 
 func TestTokenHandler_Post_WrongVerifierBurnsCode(t *testing.T) {
 	h, codes := newTokenHandler(t)
-	code := issueCode(t, codes, testVerifier, testNonce)
+	code := issueCode(t, codes, "openid", testVerifier, testNonce)
 
 	wrong := validTokenForm(code)
 	wrong.Set("code_verifier", "wrong")
@@ -223,7 +223,7 @@ func TestTokenHandler_Post_WrongVerifierBurnsCode(t *testing.T) {
 
 func TestTokenHandler_Post_OmitsNonceWhenAbsent(t *testing.T) {
 	h, codes := newTokenHandler(t)
-	code := issueCode(t, codes, testVerifier, "")
+	code := issueCode(t, codes, "openid", testVerifier, "")
 
 	rec := postToken(h, validTokenForm(code), false)
 	if rec.Code != http.StatusOK {
