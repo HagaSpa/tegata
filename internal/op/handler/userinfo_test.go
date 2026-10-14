@@ -63,25 +63,25 @@ func TestUserInfoHandler_Get_Errors(t *testing.T) {
 	cases := []struct {
 		name        string
 		header      string
-		mutate      func(c *jwt.Claims)
+		editClaims  func(c *jwt.Claims)
 		wantWWWAuth string
 	}{
 		{name: "ヘッダなし", wantWWWAuth: "Bearer"},
 		{name: "scheme 違い", header: "Basic dGVzdA==", wantWWWAuth: "Bearer"},
 		{name: "形になっていない", header: "Bearer x", wantWWWAuth: invalidToken},
-		{name: "期限切れ", mutate: func(c *jwt.Claims) { c.Exp = time.Now().Add(-time.Hour).Unix() }, wantWWWAuth: invalidToken},
-		{name: "aud が client_id（ID トークンと同じ形）", mutate: func(c *jwt.Claims) { c.Aud = jwt.Audience{"tegata-sample"} }, wantWWWAuth: invalidToken},
-		{name: "aud が RS 宛てだけ", mutate: func(c *jwt.Claims) { c.Aud = jwt.Audience{"http://localhost:9000"} }, wantWWWAuth: invalidToken},
-		{name: "iss が異なる", mutate: func(c *jwt.Claims) { c.Iss = "http://evil" }, wantWWWAuth: invalidToken},
-		{name: "sub が存在しない", mutate: func(c *jwt.Claims) { c.Sub = "u-9999" }, wantWWWAuth: invalidToken},
+		{name: "期限切れ", editClaims: func(c *jwt.Claims) { c.Exp = time.Now().Add(-time.Hour).Unix() }, wantWWWAuth: invalidToken},
+		{name: "aud が client_id（ID トークンと同じ形）", editClaims: func(c *jwt.Claims) { c.Aud = jwt.Audience{"tegata-sample"} }, wantWWWAuth: invalidToken},
+		{name: "aud が RS 宛てだけ", editClaims: func(c *jwt.Claims) { c.Aud = jwt.Audience{"http://localhost:9000"} }, wantWWWAuth: invalidToken},
+		{name: "iss が異なる", editClaims: func(c *jwt.Claims) { c.Iss = "http://evil" }, wantWWWAuth: invalidToken},
+		{name: "sub が存在しない", editClaims: func(c *jwt.Claims) { c.Sub = "u-9999" }, wantWWWAuth: invalidToken},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			header := tc.header
-			if tc.mutate != nil {
+			if tc.editClaims != nil {
 				c := accessClaims("openid")
-				tc.mutate(c)
+				tc.editClaims(c)
 				header = "Bearer " + signToken(t, km, c)
 			}
 

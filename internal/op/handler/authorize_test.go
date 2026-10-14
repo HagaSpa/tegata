@@ -48,11 +48,11 @@ func validAuthorizeQuery() url.Values {
 	return q
 }
 
-func saveRequest(t *testing.T, reqs *store.AuthorizeRequests, mutate func(r *store.AuthorizeRequest)) string {
+func saveRequest(t *testing.T, reqs *store.AuthorizeRequests, editRequest func(r *store.AuthorizeRequest)) string {
 	t.Helper()
 	req := parseAuthorizeRequest(validAuthorizeQuery())
-	if mutate != nil {
-		mutate(req)
+	if editRequest != nil {
+		editRequest(req)
 	}
 	id, err := reqs.Save(req)
 	if err != nil {
@@ -124,7 +124,7 @@ func assertBadRequest(t *testing.T, rec *httptest.ResponseRecorder) {
 func TestAuthorizeHandler_Get(t *testing.T) {
 	tests := []struct {
 		name       string
-		mutate     func(q url.Values)
+		editQuery  func(q url.Values)
 		wantStatus int
 		wantError  string
 	}{
@@ -143,8 +143,8 @@ func TestAuthorizeHandler_Get(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			q := validAuthorizeQuery()
-			if tt.mutate != nil {
-				tt.mutate(q)
+			if tt.editQuery != nil {
+				tt.editQuery(q)
 			}
 			rec := getAuthorize(h, q)
 			if rec.Code != tt.wantStatus {
@@ -210,7 +210,7 @@ func TestAuthorizeHandler_Get_SavesRequest(t *testing.T) {
 func TestAuthorizeHandler_Post(t *testing.T) {
 	tests := []struct {
 		name       string
-		mutate     func(f url.Values)
+		editForm   func(f url.Values)
 		wantStatus int
 		wantError  string
 	}{
@@ -230,8 +230,8 @@ func TestAuthorizeHandler_Post(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			id := saveRequest(t, reqs, nil)
 			f := loginForm(id)
-			if tt.mutate != nil {
-				tt.mutate(f)
+			if tt.editForm != nil {
+				tt.editForm(f)
 			}
 			rec := postAuthorize(h, f)
 			if rec.Code != tt.wantStatus {

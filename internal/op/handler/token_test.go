@@ -116,7 +116,7 @@ func TestTokenHandler_Post(t *testing.T) {
 	cases := []struct {
 		name       string
 		basic      bool
-		mutate     func(f url.Values)
+		editForm   func(f url.Values)
 		wantStatus int
 		wantError  string
 	}{
@@ -136,8 +136,8 @@ func TestTokenHandler_Post(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			f := validTokenForm(issueCode(t, codes, "openid", testVerifier, testNonce))
-			if tc.mutate != nil {
-				tc.mutate(f)
+			if tc.editForm != nil {
+				tc.editForm(f)
 			}
 
 			rec := postToken(h, f, tc.basic)
