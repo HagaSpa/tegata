@@ -47,7 +47,7 @@ func NewKeySet(client *http.Client, jwksURL string) *KeySet {
 	}
 }
 
-func parseJWK(j jwk) (*rsa.PublicKey, error) {
+func parseJWK(j *jwk) (*rsa.PublicKey, error) {
 	if j.Kty != "RSA" {
 		return nil, ErrUnkonwnKey
 	}
