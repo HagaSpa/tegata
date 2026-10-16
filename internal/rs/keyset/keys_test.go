@@ -43,4 +43,13 @@ func Test_parseJWK(t *testing.T) {
 			t.Errorf("got.N = %v, want.N %v", got.N, want.N)
 		}
 	})
+
+	t.Run("jwk.Kty が EC の場合はエラー", func(t *testing.T) {
+		j, _ := newFixJWK(t)
+		j.Kty = "EC"
+		_, gotErr := parseJWK(j)
+		if gotErr == nil {
+			t.Error("jwk.Kty = EC should be error")
+		}
+	})
 }
