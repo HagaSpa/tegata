@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"io"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
@@ -141,6 +142,52 @@ func Test_fetch_Errors(t *testing.T) {
 			got, err := fetch(http.DefaultClient, tt.url)
 			if err == nil {
 				t.Errorf("fetch() = %v, want error", got)
+			}
+		})
+	}
+}
+
+type closeTrackingBody struct {
+	io.ReadCloser
+	closed *bool
+}
+
+func (b closeTrackingBody) Close() error {
+	*b.closed = true
+	return b.ReadCloser.Close()
+}
+
+type closeTrackinggTransport struct {
+	closed *bool
+}
+
+func (t closeTrackinggTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	resp, err := http.DefaultTransport.RoundTrip(r)
+	if err != nil {
+		return nil, err
+	}
+	resp.Body = closeTrackingBody{ReadCloser: resp.Body, closed: t.closed}
+	return resp, nil
+}
+
+func Test_fetch_ClosesBody(t *testing.T) {
+	tests := []struct {
+		name   string
+		status int
+		body   string
+	}{
+		{name: "200", status: http.StatusOK, body: `{"keys":[]}`},
+		{name: "200 以外", status: http.StatusNotFound, body: "not found"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := newJWKServer(t, tt.status, tt.body)
+			closed := false
+			client := &http.Client{Transport: closeTrackinggTransport{closed: &closed}}
+			_, _ = fetch(client, srv.URL)
+			if !closed {
+				t.Errorf("resp.Body is not closed")
 			}
 		})
 	}
