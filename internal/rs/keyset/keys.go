@@ -58,7 +58,7 @@ func parseJWK(j *jwk) (*rsa.PublicKey, error) {
 	if err != nil {
 		return nil, ErrUnkonwnKey
 	}
-	de, err := base64.RawStdEncoding.DecodeString(j.E)
+	de, err := base64.RawURLEncoding.DecodeString(j.E)
 	if err != nil {
 		return nil, ErrUnkonwnKey
 	}
