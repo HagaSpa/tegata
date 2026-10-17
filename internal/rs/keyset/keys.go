@@ -3,7 +3,9 @@ package keyset
 import (
 	"crypto/rsa"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"math/big"
 	"net/http"
 	"sync"
@@ -68,4 +70,31 @@ func parseJWK(j *jwk) (*rsa.PublicKey, error) {
 		N: n,
 		E: e,
 	}, nil
+}
+
+func fetch(client *http.Client, url string) (map[string]*rsa.PublicKey, error) {
+	resp, err := client.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to access url: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed response code: %d", resp.StatusCode)
+	}
+
+	var jwks jwks
+	if err := json.NewDecoder(resp.Body).Decode(&jwks); err != nil {
+		return nil, fmt.Errorf("invalid json web keys: %w", err)
+	}
+
+	pubKeys := map[string]*rsa.PublicKey{}
+	for _, v := range jwks.Keys {
+		pubKey, err := parseJWK(&v)
+		if err != nil {
+			continue
+		}
+		pubKeys[v.Kid] = pubKey
+	}
+
+	return pubKeys, nil
 }
