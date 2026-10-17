@@ -23,9 +23,6 @@ type KeySet struct {
 	mu        sync.Mutex
 	keys      map[string]*rsa.PublicKey
 	fetchedAt time.Time
-
-	jwk  jwk
-	jwks jwks
 }
 
 type jwk struct {
@@ -82,13 +79,13 @@ func fetch(client *http.Client, url string) (map[string]*rsa.PublicKey, error) {
 		return nil, fmt.Errorf("failed response code: %d", resp.StatusCode)
 	}
 
-	var jwks jwks
-	if err := json.NewDecoder(resp.Body).Decode(&jwks); err != nil {
+	var j jwks
+	if err := json.NewDecoder(resp.Body).Decode(&j); err != nil {
 		return nil, fmt.Errorf("invalid json web keys: %w", err)
 	}
 
 	pubKeys := map[string]*rsa.PublicKey{}
-	for _, v := range jwks.Keys {
+	for _, v := range j.Keys {
 		pubKey, err := parseJWK(&v)
 		if err != nil {
 			continue
