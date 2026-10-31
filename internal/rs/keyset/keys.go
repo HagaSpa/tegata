@@ -46,6 +46,34 @@ func NewKeySet(client *http.Client, jwksURL string) *KeySet {
 	}
 }
 
+func (ks *KeySet) Key(kid string) (*rsa.PublicKey, error) {
+	ks.mu.Lock()
+	defer ks.mu.Unlock()
+
+	k := ks.keys[kid]
+	if k != nil {
+		return k, nil
+	}
+
+	if ks.now().Sub(ks.fetchedAt) < ks.interval {
+		return nil, ErrUnkonwnKey
+	}
+
+	ks.fetchedAt = ks.now()
+	mp, err := fetch(ks.client, ks.jwksURL)
+	if err != nil {
+		return nil, err
+	}
+
+	ks.keys = mp
+	k = ks.keys[kid]
+	if k != nil {
+		return k, nil
+	}
+
+	return nil, ErrUnkonwnKey
+}
+
 func parseJWK(j *jwk) (*rsa.PublicKey, error) {
 	if j.Kty != "RSA" {
 		return nil, ErrUnkonwnKey
