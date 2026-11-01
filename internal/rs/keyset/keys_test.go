@@ -12,6 +12,7 @@ import (
 	"math/big"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -396,5 +397,26 @@ func TestKeySet_Key_FetchErrors(t *testing.T) {
 				t.Errorf("hits=%d,want %d", hits, tt.wantHits)
 			}
 		})
+	}
+}
+
+func TestKeySet_Key_Concurrent(t *testing.T) {
+	a, _ := newFixJWK(t)
+	op := newFakeOP(t, jwksBody(t, a))
+	ks, clock := newTestKeySet(op)
+	if _, err := ks.Key(a.Kid); err != nil {
+		t.Fatalf("first Key() failed: %v", err)
+	}
+	clock.advance(time.Minute)
+
+	var wg sync.WaitGroup
+	for range 10 {
+		wg.Go(func() {
+			ks.Key("unknown")
+		})
+	}
+	wg.Wait()
+	if hits := op.hits.Load(); hits != 2 {
+		t.Errorf("hits = %d, want 2", hits)
 	}
 }
