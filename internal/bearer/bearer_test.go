@@ -36,7 +36,7 @@ func TestToken(t *testing.T) {
 
 func TestWriteChallenge(t *testing.T) {
 	rec := httptest.NewRecorder()
-	WriteChallenge(rec)
+	WriteMissingToken(rec)
 
 	if rec.Code != http.StatusUnauthorized {
 		t.Errorf("status = %d, want 401", rec.Code)
@@ -48,7 +48,7 @@ func TestWriteChallenge(t *testing.T) {
 
 func TestWriteError(t *testing.T) {
 	rec := httptest.NewRecorder()
-	WriteError(rec, InvalidToken)
+	WriteInvalidToken(rec)
 
 	if rec.Code != http.StatusUnauthorized {
 		t.Errorf("status = %d, want 401", rec.Code)

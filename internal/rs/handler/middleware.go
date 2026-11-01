@@ -44,21 +44,21 @@ func (a *AuthMiddleware) Require(scope string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token, ok := bearer.Token(r)
 		if !ok {
-			bearer.WriteChallenge(w)
+			bearer.WriteMissingToken(w)
 			return
 		}
 
 		claims, err := jwt.Verify(token, a.keyFor, time.Now())
 		if err != nil {
-			bearer.WriteError(w, bearer.InvalidToken)
+			bearer.WriteInvalidToken(w)
 			return
 		}
 		if claims.Iss != a.issuer {
-			bearer.WriteError(w, bearer.InvalidToken)
+			bearer.WriteInvalidToken(w)
 			return
 		}
 		if !claims.Aud.Contains(a.identifier) {
-			bearer.WriteError(w, bearer.InvalidToken)
+			bearer.WriteInvalidToken(w)
 			return
 		}
 		if !slices.Contains(strings.Fields(claims.Scope), scope) {

@@ -47,27 +47,27 @@ type userInfoResponse struct {
 func (h *UserInfoHandler) Get(w http.ResponseWriter, r *http.Request) {
 	token, ok := bearer.Token(r)
 	if !ok {
-		bearer.WriteChallenge(w)
+		bearer.WriteMissingToken(w)
 		return
 	}
 
 	claim, err := h.verifier.Verify(token)
 	if err != nil {
-		bearer.WriteError(w, bearer.InvalidToken)
+		bearer.WriteInvalidToken(w)
 		return
 	}
 	if claim.Iss != h.issuer {
-		bearer.WriteError(w, bearer.InvalidToken)
+		bearer.WriteInvalidToken(w)
 		return
 	}
 	if !claim.Aud.Contains(h.issuer + "/userinfo") {
-		bearer.WriteError(w, bearer.InvalidToken)
+		bearer.WriteInvalidToken(w)
 		return
 	}
 
 	user := h.finder.FindBySub(claim.Sub)
 	if user == nil {
-		bearer.WriteError(w, bearer.InvalidToken)
+		bearer.WriteInvalidToken(w)
 		return
 	}
 
