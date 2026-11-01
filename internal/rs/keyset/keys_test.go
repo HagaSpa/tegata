@@ -420,3 +420,86 @@ func TestKeySet_Key_Concurrent(t *testing.T) {
 		t.Errorf("hits = %d, want 2", hits)
 	}
 }
+
+type fakeDiscovery struct {
+	url    string
+	issuer atomic.Value
+	status atomic.Int32
+}
+
+func newFakeDiscovery(t *testing.T) *fakeDiscovery {
+	t.Helper()
+	d := &fakeDiscovery{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != discoveryPath {
+			http.NotFound(w, r)
+			return
+		}
+		w.WriteHeader(int(d.status.Load()))
+		json.NewEncoder(w).Encode(openIDConfiguration{
+			Issuer:  d.issuer.Load().(string),
+			JWKSURI: d.url + "/.well-known/jwks.json",
+		})
+	}))
+	t.Cleanup(srv.Close)
+	d.url = srv.URL
+	d.issuer.Store(srv.URL)
+	d.status.Store(http.StatusOK)
+	return d
+}
+
+func TestGetJWKSURI(t *testing.T) {
+	d := newFakeDiscovery(t)
+	jwksURI := d.url + "/.well-known/jwks.json"
+
+	tests := []struct {
+		name       string
+		discovered string
+		issuer     string
+		want       string
+		wantErr    error
+	}{
+		{name: "issuer が一致すれば jwks_uri を返す", discovered: d.url, issuer: d.url, want: jwksURI},
+		{name: "issuer が / で終わる OP でも取得できる", discovered: d.url + "/", issuer: d.url + "/", want: jwksURI},
+		{name: "末尾の / だけ違っても不一致", discovered: d.url, issuer: d.url + "/", wantErr: ErrIssuerMismatched},
+		{name: "別の issuer を名乗ったら不一致", discovered: "https://evil.example", issuer: d.url, wantErr: ErrIssuerMismatched},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d.issuer.Store(tt.discovered)
+			got, err := GetJWKSURI(http.DefaultClient, tt.issuer)
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("GetJWKSURI() error = %v, want %v", err, tt.wantErr)
+			}
+			if got != tt.want {
+				t.Errorf("GetJWKSURI() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetJWKSURI_Errors(t *testing.T) {
+	notFound := newFakeDiscovery(t)
+	notFound.status.Store(http.StatusNotFound)
+	closed := httptest.NewServer(http.NotFoundHandler())
+	closed.Close()
+
+	tests := []struct {
+		name   string
+		issuer string
+	}{
+		{name: "200 以外の時", issuer: notFound.url},
+		{name: "JSON ではない時", issuer: newJWKServer(t, http.StatusOK, "<html>").URL},
+		{name: "接続できない時", issuer: closed.URL},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := GetJWKSURI(http.DefaultClient, tt.issuer)
+			if err == nil {
+				t.Errorf("GetJWKSURI() = %q, want error", got)
+			}
+		})
+	}
+}
