@@ -349,3 +349,52 @@ func TestKeySet_Key(t *testing.T) {
 		})
 	}
 }
+
+func TestKeySet_Key_FetchErrors(t *testing.T) {
+	a, _ := newFixJWK(t)
+	aBody := jwksBody(t, a)
+
+	tests := []struct {
+		name     string
+		edit     func(ks *KeySet, op *fakeOP, clock *fakeClock)
+		wantHits int32
+	}{
+		{
+			name: "初回からOP障害",
+			edit: func(ks *KeySet, op *fakeOP, clock *fakeClock) {
+				ks.Key(a.Kid)
+				op.status.Store(http.StatusInternalServerError)
+				clock.advance(time.Minute)
+			},
+			wantHits: 2,
+		},
+		{
+			name: "キャッシュした後にOP障害",
+			edit: func(ks *KeySet, op *fakeOP, clock *fakeClock) {
+				ks.Key(a.Kid)
+				op.status.Store(http.StatusInternalServerError)
+				clock.advance(time.Minute)
+			},
+			wantHits: 2,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			op := newFakeOP(t, aBody)
+			ks, clock := newTestKeySet(op)
+			tt.edit(ks, op, clock)
+
+			got, err := ks.Key("unknown")
+			if err == nil || errors.Is(err, ErrUnknownKey) {
+				t.Errorf("Keys() error = %v, want fetch error", err)
+			}
+			if got != nil {
+				t.Errorf("Key() returned a key, want nil")
+			}
+			if hits := op.hits.Load(); hits != tt.wantHits {
+				t.Errorf("hits=%d,want %d", hits, tt.wantHits)
+			}
+		})
+	}
+}
