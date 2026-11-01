@@ -8,7 +8,10 @@ import (
 
 type ErrorCode string
 
-const InvalidToken ErrorCode = "invalid_token"
+const (
+	InvalidToken      ErrorCode = "invalid_token"
+	insufficientScope ErrorCode = "insufficient_scope"
+)
 
 func Token(r *http.Request) (string, bool) {
 	f := strings.Fields(r.Header.Get("Authorization"))
@@ -26,4 +29,10 @@ func WriteChallenge(w http.ResponseWriter) {
 func WriteError(w http.ResponseWriter, code ErrorCode) {
 	w.Header().Set("WWW-Authenticate", fmt.Sprintf(`Bearer error="%s"`, code))
 	http.Error(w, string(code), http.StatusUnauthorized)
+}
+
+func WriteInsufficientScope(w http.ResponseWriter, scope string) {
+	challenge := fmt.Sprintf(`Bearer error="%s", scope="%s"`, insufficientScope, scope)
+	w.Header().Set("WWW-Authenticate", challenge)
+	http.Error(w, string(insufficientScope), http.StatusForbidden)
 }
