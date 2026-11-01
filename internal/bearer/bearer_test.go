@@ -24,7 +24,7 @@ func TestToken(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			r := httptest.NewRequest(http.MethodGet, "/", nil)
 			if tc.header != "" {
-				r.Header.Set("Authorization", tc.header)
+				r.Header.Set(bearerHeader, tc.header)
 			}
 			got, ok := Token(r)
 			if got != tc.want || ok != tc.wantOK {
@@ -41,7 +41,7 @@ func TestWriteMissingToken(t *testing.T) {
 	if rec.Code != http.StatusUnauthorized {
 		t.Errorf("status = %d, want 401", rec.Code)
 	}
-	if got := rec.Header().Get("WWW-Authenticate"); got != "Bearer" {
+	if got := rec.Header().Get(challengeHeader); got != "Bearer" {
 		t.Errorf("WWW-Authenticate = %q, want Bearer", got)
 	}
 }
@@ -53,7 +53,7 @@ func TestWriteInvalidToken(t *testing.T) {
 	if rec.Code != http.StatusUnauthorized {
 		t.Errorf("status = %d, want 401", rec.Code)
 	}
-	if got, want := rec.Header().Get("WWW-Authenticate"), `Bearer error="invalid_token"`; got != want {
+	if got, want := rec.Header().Get(challengeHeader), `Bearer error="invalid_token"`; got != want {
 		t.Errorf("WWW-Authenticate = %q, want %q", got, want)
 	}
 }

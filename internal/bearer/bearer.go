@@ -6,17 +6,18 @@ import (
 	"strings"
 )
 
-type ErrorCode string
+type errorCode string
 
 const (
-	invalidToken      ErrorCode = "invalid_token"
-	insufficientScope ErrorCode = "insufficient_scope"
+	invalidToken      errorCode = "invalid_token"
+	insufficientScope errorCode = "insufficient_scope"
 
 	challengeHeader string = "WWW-Authenticate"
+	bearerHeader    string = "Authorization"
 )
 
 func Token(r *http.Request) (string, bool) {
-	f := strings.Fields(r.Header.Get("Authorization"))
+	f := strings.Fields(r.Header.Get(bearerHeader))
 	if len(f) != 2 || !strings.EqualFold(f[0], "Bearer") {
 		return "", false
 	}
