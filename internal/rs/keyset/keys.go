@@ -8,11 +8,17 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 )
 
-var ErrUnknownKey = errors.New("unknown key")
+var (
+	ErrUnknownKey       = errors.New("unknown key")
+	ErrIssuerMismatched = errors.New("issuer mismatch")
+)
+
+const discoveryPath = "/.well-known/openid-configuration"
 
 type KeySet struct {
 	jwksURL  string
@@ -34,6 +40,11 @@ type jwk struct {
 
 type jwks struct {
 	Keys []jwk `json:"keys"`
+}
+
+type openIDConfiguration struct {
+	Issuer  string `json:"issuer"`
+	JWKSURI string `json:"jwks_uri"`
 }
 
 func NewKeySet(client *http.Client, jwksURL string) *KeySet {
@@ -122,4 +133,27 @@ func fetch(client *http.Client, url string) (map[string]*rsa.PublicKey, error) {
 	}
 
 	return pubKeys, nil
+}
+
+func GetJWKSURI(client *http.Client, issuer string) (string, error) {
+	url := strings.TrimSuffix(issuer, "/") + discoveryPath
+	resp, err := client.Get(url)
+	if err != nil {
+		return "", fmt.Errorf("failed to access url: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed response code: %d", resp.StatusCode)
+	}
+
+	var o openIDConfiguration
+	if err := json.NewDecoder(resp.Body).Decode(&o); err != nil {
+		return "", fmt.Errorf("invalid openIDConfiguration schema: %w", err)
+	}
+
+	if o.Issuer != issuer {
+		return "", fmt.Errorf("%w: provided %q, discovered %q", ErrIssuerMismatched, issuer, o.Issuer)
+	}
+
+	return o.JWKSURI, nil
 }
