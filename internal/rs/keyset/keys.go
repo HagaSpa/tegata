@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-var ErrUnkonwnKey = errors.New("unknown key")
+var ErrUnknownKey = errors.New("unknown key")
 
 type KeySet struct {
 	jwksURL  string
@@ -56,7 +56,7 @@ func (ks *KeySet) Key(kid string) (*rsa.PublicKey, error) {
 	}
 
 	if ks.now().Sub(ks.fetchedAt) < ks.interval {
-		return nil, ErrUnkonwnKey
+		return nil, ErrUnknownKey
 	}
 
 	ks.fetchedAt = ks.now()
@@ -71,21 +71,21 @@ func (ks *KeySet) Key(kid string) (*rsa.PublicKey, error) {
 		return k, nil
 	}
 
-	return nil, ErrUnkonwnKey
+	return nil, ErrUnknownKey
 }
 
 func parseJWK(j *jwk) (*rsa.PublicKey, error) {
 	if j.Kty != "RSA" {
-		return nil, ErrUnkonwnKey
+		return nil, ErrUnknownKey
 	}
 
 	dn, err := base64.RawURLEncoding.DecodeString(j.N)
 	if err != nil {
-		return nil, ErrUnkonwnKey
+		return nil, ErrUnknownKey
 	}
 	de, err := base64.RawURLEncoding.DecodeString(j.E)
 	if err != nil {
-		return nil, ErrUnkonwnKey
+		return nil, ErrUnknownKey
 	}
 
 	n := new(big.Int).SetBytes(dn)
