@@ -7,11 +7,14 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"io"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func newFixJWK(t *testing.T) (*jwk, *rsa.PublicKey) {
@@ -188,6 +191,160 @@ func Test_fetch_ClosesBody(t *testing.T) {
 			_, _ = fetch(client, srv.URL)
 			if !closed {
 				t.Errorf("resp.Body is not closed")
+			}
+		})
+	}
+}
+
+type fakeOP struct {
+	url    string
+	body   atomic.Value
+	status atomic.Int32
+	hits   atomic.Int32
+}
+
+func newFakeOP(t *testing.T, body string) *fakeOP {
+	t.Helper()
+	op := &fakeOP{}
+	op.body.Store(body)
+	op.status.Store(http.StatusOK)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		op.hits.Add(1)
+		w.WriteHeader(int(op.status.Load()))
+		w.Write([]byte(op.body.Load().(string)))
+	}))
+	t.Cleanup(srv.Close)
+	op.url = srv.URL
+	return op
+}
+
+type fakeClock struct {
+	current time.Time
+}
+
+func (c *fakeClock) now() time.Time {
+	return c.current
+}
+
+func (c *fakeClock) advance(d time.Duration) {
+	c.current = c.current.Add(d)
+}
+
+func newTestKeySet(op *fakeOP) (*KeySet, *fakeClock) {
+	clock := &fakeClock{current: time.Date(2026, 11, 1, 10, 0, 0, 0, time.UTC)}
+	ks := NewKeySet(http.DefaultClient, op.url)
+	ks.now = clock.now
+	return ks, clock
+}
+
+func TestKeySet_Key(t *testing.T) {
+	a, aKey := newFixJWK(t)
+	b, bKey := newFixJWK(t)
+	aBody := jwksBody(t, a)
+	bBody := jwksBody(t, b)
+
+	tests := []struct {
+		name     string
+		edit     func(ks *KeySet, op *fakeOP, clock *fakeClock)
+		kid      string
+		want     *rsa.PublicKey
+		wantErr  error
+		wantHits int32
+	}{
+		{
+			name:     "キャッシュ済みのkidは取りに行かない",
+			kid:      a.Kid,
+			want:     aKey,
+			wantHits: 1,
+		},
+		{
+			name: "29秒経った時に、未知のkidが渡されてもfetchしない",
+			edit: func(ks *KeySet, op *fakeOP, clock *fakeClock) {
+				clock.advance(29 * time.Second)
+			},
+			kid:      "unknown",
+			wantErr:  ErrUnknownKey,
+			wantHits: 1,
+		},
+		{
+			name: "30秒経った時に、未知のkidが渡されたらfetchする",
+			edit: func(ks *KeySet, op *fakeOP, clock *fakeClock) {
+				clock.advance(30 * time.Second)
+			},
+			kid:      "unknown",
+			wantErr:  ErrUnknownKey,
+			wantHits: 2,
+		},
+		{
+			name: "OP再起動後の新しいkidはfetchして返す",
+			edit: func(ks *KeySet, op *fakeOP, clock *fakeClock) {
+				op.body.Store(bBody)
+				clock.advance(time.Minute)
+			},
+			kid:      b.Kid,
+			want:     bKey,
+			wantHits: 2,
+		},
+		{
+			name: "fetchした直後に、以前持っていたkidは取得できない",
+			edit: func(ks *KeySet, op *fakeOP, clock *fakeClock) {
+				op.body.Store(bBody)
+				clock.advance(time.Minute)
+				ks.Key(b.Kid)
+			},
+			kid:      a.Kid,
+			wantErr:  ErrUnknownKey,
+			wantHits: 2,
+		},
+		{
+			name: "OP障害中もキャッシュ済みのkidは返される",
+			edit: func(ks *KeySet, op *fakeOP, clock *fakeClock) {
+				op.status.Store(http.StatusInternalServerError)
+				clock.advance(time.Minute)
+				ks.Key("unknown")
+			},
+			kid:      a.Kid,
+			want:     aKey,
+			wantHits: 2,
+		},
+		{
+			name: "取得に失敗した10秒後に、未知のkidが渡されてもfetchしない",
+			edit: func(ks *KeySet, op *fakeOP, clock *fakeClock) {
+				op.status.Store(http.StatusInternalServerError)
+				clock.advance(time.Minute)
+				ks.Key("unknown")
+				clock.advance(10 * time.Second)
+			},
+			kid:      "unknown",
+			wantErr:  ErrUnknownKey,
+			wantHits: 2,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			op := newFakeOP(t, aBody)
+			ks, clock := newTestKeySet(op)
+			if _, err := ks.Key(a.Kid); err != nil {
+				t.Fatalf("first Key() failed: %v", err)
+			}
+			if tt.edit != nil {
+				tt.edit(ks, op, clock)
+			}
+
+			got, err := ks.Key(tt.kid)
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("Key() error = %v, want %v", err, tt.wantErr)
+			}
+			if tt.want == nil {
+				if got != nil {
+					t.Errorf("Key() returned a key, want nil")
+				}
+			} else if got == nil || !got.Equal(tt.want) {
+				t.Errorf("Key() does not return the want key")
+			}
+			if hits := op.hits.Load(); hits != tt.wantHits {
+				t.Errorf("hits = %d, want %d", hits, tt.wantHits)
 			}
 		})
 	}
