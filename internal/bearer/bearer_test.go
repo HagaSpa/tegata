@@ -34,7 +34,7 @@ func TestToken(t *testing.T) {
 	}
 }
 
-func TestWriteChallenge(t *testing.T) {
+func TestWriteMissingToken(t *testing.T) {
 	rec := httptest.NewRecorder()
 	WriteMissingToken(rec)
 
@@ -46,7 +46,7 @@ func TestWriteChallenge(t *testing.T) {
 	}
 }
 
-func TestWriteError(t *testing.T) {
+func TestWriteInvalidToken(t *testing.T) {
 	rec := httptest.NewRecorder()
 	WriteInvalidToken(rec)
 
