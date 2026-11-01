@@ -57,3 +57,16 @@ func TestWriteInvalidToken(t *testing.T) {
 		t.Errorf("WWW-Authenticate = %q, want %q", got, want)
 	}
 }
+
+func TestWriteInsufficientScope(t *testing.T) {
+	rec := httptest.NewRecorder()
+	scope := "openid notes.read"
+	WriteInsufficientScope(rec, scope)
+
+	if rec.Code != http.StatusForbidden {
+		t.Errorf("status = %d, want 403", rec.Code)
+	}
+	if got, want := rec.Header().Get(challengeHeader), `Bearer error="insufficient_scope", scope="openid notes.read"`; got != want {
+		t.Errorf("WWW-Authenticate = %q, want %q", got, want)
+	}
+}
