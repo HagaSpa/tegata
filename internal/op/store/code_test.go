@@ -24,10 +24,7 @@ func advance(s *Codes, d time.Duration) {
 
 func mustIssue(t *testing.T, s *Codes, sub string) string {
 	t.Helper()
-	key, err := s.Issue("client-1", "http://rp/cb", "openid", "challenge-1", "nonce-1", sub)
-	if err != nil {
-		t.Fatalf("Issue() failed: %v", err)
-	}
+	key := s.Issue("client-1", "http://rp/cb", "openid", "challenge-1", "nonce-1", sub)
 	return key
 }
 

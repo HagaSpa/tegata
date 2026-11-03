@@ -23,7 +23,7 @@ type UserAuthenticator interface {
 }
 
 type AuthorizeRequestOperator interface {
-	Save(req *store.AuthorizeRequest) (string, error)
+	Save(req *store.AuthorizeRequest) string
 	Find(key string) (*store.AuthorizeRequest, error)
 	FindAndDelete(key string) (*store.AuthorizeRequest, error)
 }
@@ -36,7 +36,7 @@ type CodeIssuer interface {
 		codeChallenge string,
 		nonce string,
 		sub string,
-	) (string, error)
+	) string
 }
 
 type AuthorizeHandler struct {
@@ -73,11 +73,7 @@ func (h *AuthorizeHandler) Get(w http.ResponseWriter, r *http.Request) {
 		redirectAuthorizationError(w, r, req, code, desc)
 		return
 	}
-	id, err := h.authReq.Save(req)
-	if err != nil {
-		redirectAuthorizationError(w, r, req, errServerError, "failed to save authorize request")
-		return
-	}
+	id := h.authReq.Save(req)
 	param := templateParam{
 		ID: id,
 	}
@@ -129,11 +125,7 @@ func (h *AuthorizeHandler) Post(w http.ResponseWriter, r *http.Request) {
 	case "deny":
 		redirectAuthorizationError(w, r, req, errAccessDenied, "the user denied the request")
 	case "approve":
-		code, err := h.code.Issue(req.ClientID, req.RedirectURI, req.Scope, req.CodeChallenge, req.Nonce, sub)
-		if err != nil {
-			redirectAuthorizationError(w, r, req, errServerError, "failed to issue code")
-			return
-		}
+		code := h.code.Issue(req.ClientID, req.RedirectURI, req.Scope, req.CodeChallenge, req.Nonce, sub)
 		values := url.Values{}
 		values.Set("code", code)
 		if req.State != "" {

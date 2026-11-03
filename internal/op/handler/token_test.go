@@ -40,10 +40,7 @@ func challengeOf(verifier string) string {
 
 func issueCode(t *testing.T, codes *store.Codes, scope, verifier, nonce string) string {
 	t.Helper()
-	code, err := codes.Issue("tegata-sample", "http://localhost:9999/callback", scope, challengeOf(verifier), nonce, "u-0001")
-	if err != nil {
-		t.Fatalf("Issue() failed: %v", err)
-	}
+	code := codes.Issue("tegata-sample", "http://localhost:9999/callback", scope, challengeOf(verifier), nonce, "u-0001")
 	return code
 }
 

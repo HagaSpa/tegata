@@ -1,10 +1,7 @@
 package store
 
 import (
-	"crypto/rand"
-	"encoding/base64"
 	"errors"
-	"fmt"
 	"sync"
 	"time"
 )
@@ -36,20 +33,15 @@ func NewAuthorizeRequests() *AuthorizeRequests {
 	}
 }
 
-func (s *AuthorizeRequests) Save(req *AuthorizeRequest) (string, error) {
-	b := make([]byte, 32)
-	_, err := rand.Read(b)
-	if err != nil {
-		return "", fmt.Errorf("generate rand: %w", err)
-	}
-	key := base64.RawURLEncoding.EncodeToString(b)
+func (s *AuthorizeRequests) Save(req *AuthorizeRequest) string {
+	key := generateRandomString()
 	expiredAt := s.now().Add(10 * time.Minute)
 	cp := *req
 	cp.ExpiresAt = expiredAt
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.requests[key] = &cp
-	return key, nil
+	return key
 }
 
 func (s *AuthorizeRequests) Find(key string) (*AuthorizeRequest, error) {

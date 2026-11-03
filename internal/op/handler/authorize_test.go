@@ -54,10 +54,7 @@ func saveRequest(t *testing.T, reqs *store.AuthorizeRequests, editRequest func(r
 	if editRequest != nil {
 		editRequest(req)
 	}
-	id, err := reqs.Save(req)
-	if err != nil {
-		t.Fatalf("Save() failed: %v", err)
-	}
+	id := reqs.Save(req)
 	return id
 }
 

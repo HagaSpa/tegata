@@ -35,10 +35,7 @@ func validAuthorizeRequest() *AuthorizeRequest {
 
 func mustSave(t *testing.T, s *AuthorizeRequests, req *AuthorizeRequest) string {
 	t.Helper()
-	key, err := s.Save(req)
-	if err != nil {
-		t.Fatalf("failed save err = %v", err)
-	}
+	key := s.Save(req)
 	return key
 }
 

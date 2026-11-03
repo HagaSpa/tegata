@@ -1,10 +1,7 @@
 package store
 
 import (
-	"crypto/rand"
-	"encoding/base64"
 	"errors"
-	"fmt"
 	"sync"
 	"time"
 )
@@ -41,13 +38,8 @@ func (s *Codes) Issue(
 	codeChallenge string,
 	nonce string,
 	sub string,
-) (string, error) {
-	b := make([]byte, 32)
-	_, err := rand.Read(b)
-	if err != nil {
-		return "", fmt.Errorf("generate rand: %w", err)
-	}
-	key := base64.RawURLEncoding.EncodeToString(b)
+) string {
+	key := generateRandomString()
 	expiresAt := s.now().Add(5 * time.Minute)
 	code := &Code{
 		ClientID:      clientID,
@@ -61,7 +53,7 @@ func (s *Codes) Issue(
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.codes[key] = code
-	return key, nil
+	return key
 }
 
 func (s *Codes) Consume(key string) (*Code, error) {

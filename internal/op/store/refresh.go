@@ -32,16 +32,8 @@ func (s *RefreshTokens) Issue(
 	sub string,
 	scope string,
 ) (string, error) {
-	refreshToken, err := generateRandomString()
-	if err != nil {
-		return "", err
-	}
-
-	familyID, err := generateRandomString()
-	if err != nil {
-		return "", err
-	}
-
+	refreshToken := generateRandomString()
+	familyID := generateRandomString()
 	expiresAt := s.now().AddDate(0, 0, 30)
 	token := &RefreshToken{
 		ClientID:  clientID,
