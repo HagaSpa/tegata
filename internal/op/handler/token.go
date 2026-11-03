@@ -68,7 +68,7 @@ type tokenResponse struct {
 	AccessToken  string `json:"access_token"`
 	TokenType    string `json:"token_type"`
 	ExpiresIn    int64  `json:"expires_in"`
-	IDToken      string `json:"id_token"`
+	IDToken      string `json:"id_token,omitempty"`
 	Scope        string `json:"scope"`
 	RefreshToken string `json:"refresh_token,omitempty"`
 }
@@ -95,6 +95,8 @@ func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 	switch r.PostFormValue("grant_type") {
 	case "authorization_code":
 		h.authorizationCode(w, r, user)
+	case "refresh_token":
+		h.refreshToken(w, r, user)
 	default:
 		writeTokenError(w, http.StatusBadRequest, errUnsupportedGrantType, "grant_type is unsupported")
 	}
@@ -144,7 +146,7 @@ func (h *TokenHandler) authorizationCode(
 		return
 	}
 
-	access, err := h.signAccessToken(code.Sub, code.Scope, h.now())
+	access, err := h.signAccessToken(code.Sub, code.Scope, now)
 	if err != nil {
 		writeTokenError(w, http.StatusInternalServerError, errServerError, "failed to sign access_token")
 		return
@@ -158,6 +160,35 @@ func (h *TokenHandler) authorizationCode(
 		ExpiresIn:   int64(tokenTTL.Seconds()),
 		IDToken:     idToken.String(),
 		Scope:       code.Scope,
+	}
+	writeJSON(w, http.StatusOK, v)
+}
+
+func (h *TokenHandler) refreshToken(
+	w http.ResponseWriter,
+	r *http.Request,
+	clientID string,
+) {
+	nextKey, next, err := h.refreshTokens.Rotate(r.PostFormValue("refresh_token"), clientID)
+	if err != nil {
+		writeTokenError(w, http.StatusBadRequest, errInvalidGrant, err.Error())
+		return
+	}
+
+	access, err := h.signAccessToken(next.Sub, next.Scope, h.now())
+	if err != nil {
+		writeTokenError(w, http.StatusInternalServerError, errServerError, "failed to sign access_token")
+		return
+	}
+
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
+	v := tokenResponse{
+		AccessToken:  access.String(),
+		TokenType:    "Bearer",
+		ExpiresIn:    int64(tokenTTL.Seconds()),
+		Scope:        next.Scope,
+		RefreshToken: nextKey,
 	}
 	writeJSON(w, http.StatusOK, v)
 }
