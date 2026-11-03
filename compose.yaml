@@ -10,6 +10,20 @@ services:
     ports:
       - "8080:8080"
       - "5556:5556"
+      - "9000:9000"
+  resource-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        TARGET: rs
+    network_mode: "service:openid-provider"
+    restart: on-failure
+    depends_on:
+      - openid-provider
+    environment:
+      - TZ=Asia/Tokyo
+      - ISSUER=http://localhost:8080
   relying-party:
     build:
       context: .
@@ -22,3 +36,4 @@ services:
       - ISSUER=http://localhost:8080
       - LISTEN=0.0.0.0:5556
       - REDIRECT_URL=http://127.0.0.1:5556/callback
+      - NOTES_URL=http://localhost:9000/notes

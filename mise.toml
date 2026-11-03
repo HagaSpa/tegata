@@ -10,7 +10,7 @@ description = "Run all tests with the race detector"
 run = "go test -race ./..."
 
 [tasks.start]
-description = "Build and start tegata and the RP (open http://127.0.0.1:5556/)"
+description = "Build and start tegata, the RS and the RP (open http://127.0.0.1:5556/)"
 run = "docker compose up --build"
 
 [tasks.stop]
@@ -21,6 +21,10 @@ run = "docker compose down"
 description = "Run tegata locally with go run (http://localhost:8080)"
 run = "go run ./cmd/op"
 
+[tasks.serve-rs]
+description = "Run the resource server locally with go run (http://localhost:9000, needs mise serve)"
+run = "go run ./cmd/rs"
+
 [tasks.smoke]
-description = "Check /authorize and token behavior against a running OpenID Provider (start it with mise serve)"
-run = ["./scripts/smoke-authorize.sh", "./scripts/smoke-token.sh"]
+description = "Check /authorize, token and resource server behavior (start them with mise serve and mise serve-rs, or mise start)"
+run = ["./scripts/smoke-authorize.sh", "./scripts/smoke-token.sh", "./scripts/smoke-rs.sh"]

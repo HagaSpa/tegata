@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/json"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -23,11 +25,28 @@ func setCallbackCookie(w http.ResponseWriter, name, value string) {
 	http.SetCookie(w, &http.Cookie{Name: name, Value: value, MaxAge: 300, HttpOnly: true, Path: "/"})
 }
 
+func fetchNotes(ctx context.Context, url string, token *oauth2.Token) (json.RawMessage, error) {
+	resp, err := oauth2.NewClient(ctx, oauth2.StaticTokenSource(token)).Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("%s (WWW-Authenticate: %s) %s", resp.Status, resp.Header.Get("WWW-Authenticate"), body)
+	}
+	return body, nil
+}
+
 func main() {
 	ctx := context.Background()
 	issuer := env("ISSUER", "http://localhost:8080")
 	listen := env("LISTEN", "127.0.0.1:5556")
 	redirectURL := env("REDIRECT_URL", "http://127.0.0.1:5556/callback")
+	notesURL := env("NOTES_URL", "http://localhost:9000/notes")
 
 	provider, err := oidc.NewProvider(ctx, issuer)
 	if err != nil {
@@ -38,7 +57,7 @@ func main() {
 		ClientSecret: env("CLIENT_SECRET", "rp-secret"),
 		Endpoint:     provider.Endpoint(),
 		RedirectURL:  redirectURL,
-		Scopes:       []string{oidc.ScopeOpenID, "profile", "email"},
+		Scopes:       []string{oidc.ScopeOpenID, "profile", "email", "notes.read"},
 	}
 	verifier := provider.Verifier(&oidc.Config{ClientID: config.ClientID})
 
@@ -92,6 +111,12 @@ func main() {
 			return
 		}
 
+		notes, err := fetchNotes(ctx, notesURL, token)
+		if err != nil {
+			http.Error(w, "notes failed: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
 		var idClaims, userClaims json.RawMessage
 		idToken.Claims(&idClaims)
 		userInfo.Claims(&userClaims)
@@ -99,8 +124,9 @@ func main() {
 			Message       string
 			IDTokenClaims json.RawMessage
 			UserInfo      json.RawMessage
+			Notes         json.RawMessage
 			OAuth2Token   *oauth2.Token
-		}{"login completed", idClaims, userClaims, token}
+		}{"login completed", idClaims, userClaims, notes, token}
 		data, _ := json.MarshalIndent(resp, "", "  ")
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(data)
