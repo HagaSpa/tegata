@@ -18,6 +18,11 @@ type ClientAuthenticator interface {
 	Authenticate(clientID, secret string) bool
 }
 
+type RefreshTokenOperator interface {
+	Issue(clientID string, sub string, scope string) string
+	Rotate(key string, clientID string) (string, *store.RefreshToken, error)
+}
+
 type CodeConsumer interface {
 	Consume(code string) (*store.Code, error)
 }
@@ -32,6 +37,7 @@ type AudienceResolver interface {
 
 type TokenHandler struct {
 	client   ClientAuthenticator
+	tokens   RefreshTokenOperator
 	codes    CodeConsumer
 	signer   Signer
 	issuer   string
@@ -41,6 +47,7 @@ type TokenHandler struct {
 
 func NewTokenHandler(
 	client ClientAuthenticator,
+	tokens RefreshTokenOperator,
 	codes CodeConsumer,
 	signer Signer,
 	resolver AudienceResolver,
@@ -48,6 +55,7 @@ func NewTokenHandler(
 ) *TokenHandler {
 	return &TokenHandler{
 		client:   client,
+		tokens:   tokens,
 		codes:    codes,
 		signer:   signer,
 		issuer:   issuer,

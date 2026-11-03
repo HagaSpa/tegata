@@ -42,11 +42,12 @@ func main() {
 
 	co := store.NewCodes()
 	ar := store.NewAuthorizeRequests()
+	ts := store.NewRefreshTokens()
 
 	jwksHandler := handler.NewJWKHandler(km)
 	metadataHandler := handler.NewMetadataHandler(issuer)
 	authHandler := handler.NewAuthorizeHandler(cl, u, co, ar)
-	tokenHandler := handler.NewTokenHandler(cl, co, km, r, issuer)
+	tokenHandler := handler.NewTokenHandler(cl, ts, co, km, r, issuer)
 	useinfoHandler := handler.NewUserInfofHandler(km, u, issuer)
 
 	mux := http.NewServeMux()
