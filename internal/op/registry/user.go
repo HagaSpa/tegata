@@ -36,10 +36,7 @@ func NewUsers(
 	seedEmail string,
 ) (*Users, error) {
 	salt := make([]byte, 16)
-	_, err := rand.Read(salt)
-	if err != nil {
-		return nil, fmt.Errorf("read salt: %w", err)
-	}
+	rand.Read(salt)
 	hash, err := pbkdf2.Key(sha256.New, seedPassword, salt, pdkdf2Iterations, pbkdf2KeyLen)
 	if err != nil {
 		return nil, fmt.Errorf("derive key: %w", err)
