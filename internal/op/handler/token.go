@@ -83,22 +83,29 @@ func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.PostFormValue("grant_type") != "authorization_code" {
+	switch r.PostFormValue("grant_type") {
+	case "authorization_code":
+		h.authorizationCode(w, r, user)
+	default:
 		writeTokenError(w, http.StatusBadRequest, errUnsupportedGrantType, "grant_type is unsupported")
-		return
 	}
+}
 
+func (h *TokenHandler) authorizationCode(
+	w http.ResponseWriter,
+	r *http.Request,
+	clientID string,
+) {
 	code, err := h.codes.Consume(r.PostFormValue("code"))
 	if err != nil {
 		if errors.Is(err, store.ErrInvalidCode) {
 			writeTokenError(w, http.StatusBadRequest, errInvalidGrant, "code is invalid")
 			return
-		} else {
-			writeTokenError(w, http.StatusInternalServerError, errServerError, "failed to consume code")
-			return
 		}
+		writeTokenError(w, http.StatusInternalServerError, errServerError, "failed to consume code")
+		return
 	}
-	if code.ClientID != user {
+	if code.ClientID != clientID {
 		writeTokenError(w, http.StatusBadRequest, errInvalidGrant, "client_id is invalid")
 		return
 	}
@@ -118,7 +125,7 @@ func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 	idToken, err := h.signer.Sign(&jwt.Claims{
 		Iss:   h.issuer,
 		Sub:   code.Sub,
-		Aud:   jwt.Audience{user},
+		Aud:   jwt.Audience{clientID},
 		Iat:   now.Unix(),
 		Exp:   now.Add(tokenTTL).Unix(),
 		Nonce: code.Nonce,
