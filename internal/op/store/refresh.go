@@ -1,9 +1,13 @@
 package store
 
 import (
+	"errors"
+	"maps"
 	"sync"
 	"time"
 )
+
+var ErrInvalidRefreshToken = errors.New("invalid refresh token")
 
 type RefreshToken struct {
 	ClientID  string
@@ -46,4 +50,41 @@ func (s *RefreshTokens) Issue(
 	defer s.mu.Unlock()
 	s.tokens[refreshToken] = token
 	return refreshToken
+}
+
+func (s *RefreshTokens) Rotate(
+	key string,
+	clientID string,
+) (string, *RefreshToken, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	cur := s.tokens[key]
+	if cur == nil {
+		return "", nil, ErrInvalidRefreshToken
+	}
+	if cur.ClientID != clientID {
+		return "", nil, ErrInvalidRefreshToken
+	}
+	if cur.ExpiresAt.Before(s.now()) {
+		return "", nil, ErrInvalidRefreshToken
+	}
+	if cur.used {
+		maps.DeleteFunc(s.tokens, func(_ string, v *RefreshToken) bool {
+			return v.FamilyID == cur.FamilyID
+		})
+		return "", nil, ErrInvalidRefreshToken
+	}
+
+	cur.used = true
+	nextKey := generateRandomString()
+	next := &RefreshToken{
+		ClientID:  cur.ClientID,
+		Sub:       cur.Sub,
+		Scope:     cur.Scope,
+		FamilyID:  cur.FamilyID,
+		ExpiresAt: cur.ExpiresAt,
+	}
+	s.tokens[nextKey] = next
+	return nextKey, next, nil
 }
