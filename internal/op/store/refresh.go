@@ -36,10 +36,10 @@ func (s *RefreshTokens) Issue(
 	sub string,
 	scope string,
 ) string {
-	refreshToken := generateRandomString()
+	key := generateRandomString()
 	familyID := generateRandomString()
 	expiresAt := s.now().AddDate(0, 0, 30)
-	token := &RefreshToken{
+	rt := &RefreshToken{
 		ClientID:  clientID,
 		Sub:       sub,
 		Scope:     scope,
@@ -48,8 +48,8 @@ func (s *RefreshTokens) Issue(
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.tokens[refreshToken] = token
-	return refreshToken
+	s.tokens[key] = rt
+	return key
 }
 
 func (s *RefreshTokens) Rotate(
