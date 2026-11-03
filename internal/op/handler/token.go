@@ -36,40 +36,41 @@ type AudienceResolver interface {
 }
 
 type TokenHandler struct {
-	client   ClientAuthenticator
-	tokens   RefreshTokenOperator
-	codes    CodeConsumer
-	signer   Signer
-	issuer   string
-	resolver AudienceResolver
-	now      func() time.Time
+	client        ClientAuthenticator
+	refreshTokens RefreshTokenOperator
+	codes         CodeConsumer
+	signer        Signer
+	issuer        string
+	resolver      AudienceResolver
+	now           func() time.Time
 }
 
 func NewTokenHandler(
 	client ClientAuthenticator,
-	tokens RefreshTokenOperator,
+	refreshTokens RefreshTokenOperator,
 	codes CodeConsumer,
 	signer Signer,
 	resolver AudienceResolver,
 	issuer string,
 ) *TokenHandler {
 	return &TokenHandler{
-		client:   client,
-		tokens:   tokens,
-		codes:    codes,
-		signer:   signer,
-		issuer:   issuer,
-		resolver: resolver,
-		now:      time.Now,
+		client:        client,
+		refreshTokens: refreshTokens,
+		codes:         codes,
+		signer:        signer,
+		issuer:        issuer,
+		resolver:      resolver,
+		now:           time.Now,
 	}
 }
 
 type tokenResponse struct {
-	AccessToken string `json:"access_token"`
-	TokenType   string `json:"token_type"`
-	ExpiresIn   int64  `json:"expires_in"`
-	IDToken     string `json:"id_token"`
-	Scope       string `json:"scope"`
+	AccessToken  string `json:"access_token"`
+	TokenType    string `json:"token_type"`
+	ExpiresIn    int64  `json:"expires_in"`
+	IDToken      string `json:"id_token"`
+	Scope        string `json:"scope"`
+	RefreshToken string `json:"refresh_token,omitempty"`
 }
 
 func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
@@ -143,16 +144,7 @@ func (h *TokenHandler) authorizationCode(
 		return
 	}
 
-	aud := jwt.Audience{h.issuer + "/userinfo"}
-	aud = append(aud, h.resolver.Audiences(code.Scope)...)
-	access, err := h.signer.Sign(&jwt.Claims{
-		Iss:   h.issuer,
-		Sub:   code.Sub,
-		Aud:   aud,
-		Iat:   now.Unix(),
-		Exp:   now.Add(tokenTTL).Unix(),
-		Scope: code.Scope,
-	})
+	access, err := h.signAccessToken(code.Sub, code.Scope, h.now())
 	if err != nil {
 		writeTokenError(w, http.StatusInternalServerError, errServerError, "failed to sign access_token")
 		return
@@ -168,4 +160,22 @@ func (h *TokenHandler) authorizationCode(
 		Scope:       code.Scope,
 	}
 	writeJSON(w, http.StatusOK, v)
+}
+
+func (h *TokenHandler) signAccessToken(
+	sub string,
+	scope string,
+	now time.Time,
+) (*jwt.Token, error) {
+	aud := jwt.Audience{h.issuer + "/userinfo"}
+	aud = append(aud, h.resolver.Audiences(scope)...)
+	access, err := h.signer.Sign(&jwt.Claims{
+		Iss:   h.issuer,
+		Sub:   sub,
+		Aud:   aud,
+		Iat:   now.Unix(),
+		Exp:   now.Add(tokenTTL).Unix(),
+		Scope: scope,
+	})
+	return access, err
 }
