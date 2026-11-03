@@ -31,7 +31,7 @@ func (s *RefreshTokens) Issue(
 	clientID string,
 	sub string,
 	scope string,
-) (string, error) {
+) string {
 	refreshToken := generateRandomString()
 	familyID := generateRandomString()
 	expiresAt := s.now().AddDate(0, 0, 30)
@@ -45,5 +45,5 @@ func (s *RefreshTokens) Issue(
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.tokens[refreshToken] = token
-	return refreshToken, nil
+	return refreshToken
 }
