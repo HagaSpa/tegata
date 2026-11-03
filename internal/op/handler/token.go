@@ -6,6 +6,8 @@ import (
 	"encoding/base64"
 	"errors"
 	"net/http"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/HagaSpa/tegata/internal/jwt"
@@ -161,6 +163,12 @@ func (h *TokenHandler) authorizationCode(
 		IDToken:     idToken.String(),
 		Scope:       code.Scope,
 	}
+
+	if slices.Contains(strings.Fields(code.Scope), "offline_access") {
+		key := h.refreshTokens.Issue(clientID, code.Sub, code.Scope)
+		v.RefreshToken = key
+	}
+
 	writeJSON(w, http.StatusOK, v)
 }
 
