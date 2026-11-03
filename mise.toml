@@ -25,6 +25,10 @@ run = "go run ./cmd/op"
 description = "Run the resource server locally with go run (http://localhost:9000, needs mise serve)"
 run = "go run ./cmd/rs"
 
+[tasks.demo-op-restart]
+description = "Restart only the OP and watch the RS refetch JWKS for an unknown kid (stop mise serve / serve-rs / start first)"
+run = "./scripts/demo-op-restart.sh"
+
 [tasks.smoke]
 description = "Check /authorize, token and resource server behavior (start them with mise serve and mise serve-rs, or mise start)"
 run = ["./scripts/smoke-authorize.sh", "./scripts/smoke-token.sh", "./scripts/smoke-rs.sh"]
