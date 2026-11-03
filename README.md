@@ -1,5 +1,6 @@
 # tegata
 tegata is an OpenID Provider (OAuth 2.0 Authorization Server). Reinventing the wheel for learning purposes.
+https://openid-foundation-japan.github.io/rfc6749.ja.html
 
 | compose service | directory | role |
 |---|---|---|
