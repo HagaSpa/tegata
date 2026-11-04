@@ -30,6 +30,7 @@ type openIDConfiguration struct {
 	ScopesSupported                   []string `json:"scopes_supported"`
 	TokenEndpointAuthMethodsSupported []string `json:"token_endpoint_auth_methods_supported"`
 	CodeChallengeMethodsSupported     []string `json:"code_challenge_methods_supported"`
+	GrantTypesSupported               []string `json:"grant_types_supported"`
 }
 
 func newOpenIDConfiguration(issuer string) *openIDConfiguration {
@@ -42,8 +43,9 @@ func newOpenIDConfiguration(issuer string) *openIDConfiguration {
 		ResponseTypesSupported:            []string{"code"},
 		SubjectTypesSupported:             []string{"public"},
 		IdTokenSigningAlgValuesSupported:  []string{"RS256"},
-		ScopesSupported:                   []string{"openid", "notes.read", "notes.write"},
+		ScopesSupported:                   []string{"openid", "notes.read", "notes.write", "offline_access"},
 		TokenEndpointAuthMethodsSupported: []string{"client_secret_post", "client_secret_basic"},
 		CodeChallengeMethodsSupported:     []string{"S256"},
+		GrantTypesSupported:               []string{"authorization_code", "refresh_token"},
 	}
 }
