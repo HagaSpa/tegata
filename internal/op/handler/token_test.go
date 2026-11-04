@@ -271,3 +271,135 @@ func TestTokenHandler_Post_AccessTokenAudience(t *testing.T) {
 		})
 	}
 }
+
+const offlineScope = "openid offline_access notes.read"
+
+func refreshForm(refreshToken string) url.Values {
+	f := url.Values{}
+	f.Set("grant_type", "refresh_token")
+	f.Set("refresh_token", refreshToken)
+	f.Set("client_id", "tegata-sample")
+	f.Set("client_secret", "dummy-secret")
+	return f
+}
+
+func loginRefreshToken(t *testing.T, h *TokenHandler, codes *store.Codes) string {
+	t.Helper()
+	code := issueCode(t, codes, offlineScope, testVerifier, testNonce)
+	rec := postToken(h, validTokenForm(code), false)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("login status = %d, want 200 (body %q)", rec.Code, rec.Body.String())
+	}
+	rt, _ := decodeJSON(t, rec)["refresh_token"].(string)
+	if rt == "" {
+		t.Fatalf("login response has no refresh_token")
+	}
+	return rt
+}
+
+func mustRefresh(t *testing.T, h *TokenHandler, refreshToken string) map[string]any {
+	t.Helper()
+	rec := postToken(h, refreshForm(refreshToken), false)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("refresh status = %d, want 200 (body %q)", rec.Code, rec.Body.String())
+	}
+	if rec.Header().Get("Cache-Control") != "no-store" {
+		t.Errorf("Cache-Control = %q, want no-store", rec.Header().Get("Cache-Control"))
+	}
+	return decodeJSON(t, rec)
+}
+
+func TestTokenHandler_Post_RefreshTokenOnlyWithOfflineAccess(t *testing.T) {
+	tests := []struct {
+		name        string
+		scope       string
+		wantRefresh bool
+	}{
+		{"offline_access なしなら返さない", "openid", false},
+		{"offline_access ありなら返す", "openid offline_access", true},
+	}
+
+	h, codes := newTokenHandler(t)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			code := issueCode(t, codes, tt.scope, testVerifier, testNonce)
+			rec := postToken(h, validTokenForm(code), false)
+			if rec.Code != http.StatusOK {
+				t.Fatalf("statsu = %d, want 200 (body %q)", rec.Code, rec.Body.String())
+			}
+			rt, ok := decodeJSON(t, rec)["refresh_token"]
+			if ok != tt.wantRefresh {
+				t.Errorf("refresh_token present = %v, want %v (value %v)", ok, tt.wantRefresh, rt)
+			}
+		})
+	}
+}
+
+func TestTokenHandler_Post_Refresh(t *testing.T) {
+	h, codes := newTokenHandler(t)
+	rt1 := loginRefreshToken(t, h, codes)
+
+	body := mustRefresh(t, h, rt1)
+
+	if body["token_type"] != "Bearer" {
+		t.Errorf("token_type = %v, want Bearer", body["token_type"])
+	}
+	if body["expires_in"] != float64(3600) {
+		t.Errorf("expires_in = %v, want 3600", body["expires_in"])
+	}
+	if body["scope"] != offlineScope {
+		t.Errorf("scope = %v, want %q", body["scope"], offlineScope)
+	}
+	if _, ok := body["id_token"]; ok {
+		t.Errorf("refresh response must not carry id_token: %v", body)
+	}
+
+	rt2, _ := body["refresh_token"].(string)
+	if rt2 == "" || rt2 == rt1 {
+		t.Errorf("refresh_token = %q, want a new value", rt2)
+	}
+
+	accessToken, _ := body["access_token"].(string)
+	at := decodePayload(t, accessToken)
+	wantAud := []any{testIssuer + "/userinfo", "http://localhost:9000"}
+	if at["iss"] != testIssuer || at["sub"] != "u-0001" || at["scope"] != offlineScope || !reflect.DeepEqual(at["aud"], wantAud) {
+		t.Errorf("access_token claims = %v", at)
+	}
+	if _, ok := at["nonce"]; ok {
+		t.Errorf("access_token must not carry nonce: %v", at)
+	}
+
+	mustRefresh(t, h, rt2)
+}
+
+func TestTokenHandler_Post_Refresh_Errors(t *testing.T) {
+	cases := []struct {
+		name       string
+		editForm   func(f url.Values)
+		wantStatus int
+		wantError  string
+	}{
+		{"refresh_token 不明は invalid_grant", func(f url.Values) { f.Set("refresh_token", "nope") }, http.StatusBadRequest, "invalid_grant"},
+		{"別のクライアントは invalid_grant", func(f url.Values) {
+			f.Set("client_id", "tegata-rp")
+			f.Set("client_secret", "rp-secret")
+		}, http.StatusBadRequest, "invalid_grant"},
+		{"client_secret 違いは invalid_client", func(f url.Values) { f.Set("client_secret", "x") }, http.StatusUnauthorized, "invalid_client"},
+	}
+
+	h, codes := newTokenHandler(t)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			f := refreshForm(loginRefreshToken(t, h, codes))
+			tc.editForm(f)
+
+			rec := postToken(h, f, false)
+			if rec.Code != tc.wantStatus {
+				t.Fatalf("status = %d, want %d (body %q)", rec.Code, tc.wantStatus, rec.Body.String())
+			}
+			if got := decodeJSON(t, rec)["error"]; got != tc.wantError {
+				t.Errorf("error = %v, want %q", got, tc.wantError)
+			}
+		})
+	}
+}
