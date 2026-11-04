@@ -49,6 +49,7 @@ func main() {
 	authHandler := handler.NewAuthorizeHandler(cl, u, co, ar)
 	tokenHandler := handler.NewTokenHandler(cl, ts, co, km, r, issuer)
 	useinfoHandler := handler.NewUserInfofHandler(km, u, issuer)
+	revokeHandler := handler.NewRevokeHandler(cl, ts)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /", pingHandler)
@@ -58,6 +59,7 @@ func main() {
 	mux.HandleFunc("POST /authorize", authHandler.Post)
 	mux.HandleFunc("POST /token", tokenHandler.Post)
 	mux.HandleFunc("GET /userinfo", useinfoHandler.Get)
+	mux.HandleFunc("POST /revoke", revokeHandler.Post)
 
 	fmt.Println("Serving on :8080...")
 	log.Fatal(http.ListenAndServe(":8080", mux))
