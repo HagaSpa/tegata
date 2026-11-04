@@ -88,3 +88,19 @@ func (s *RefreshTokens) Rotate(
 	s.tokens[nextKey] = next
 	return nextKey, next, nil
 }
+
+func (s *RefreshTokens) Revoke(
+	key string,
+	clientID string,
+) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	cur := s.tokens[key]
+	if cur == nil || cur.ClientID != clientID {
+		return
+	}
+	maps.DeleteFunc(s.tokens, func(_ string, v *RefreshToken) bool {
+		return v.FamilyID == cur.FamilyID
+	})
+}
