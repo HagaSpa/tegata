@@ -208,3 +208,46 @@ func TestRefreshTokens(t *testing.T) {
 		}
 	})
 }
+
+func TestRefreshTokens_Revoke(t *testing.T) {
+	t.Run("失効すると Rotate できない", func(t *testing.T) {
+		s := newFixedRefreshTokens(t)
+		key := s.Issue("client-1", "u-0001", "openid offline_access")
+		s.Revoke(key, "client-1")
+		if _, _, err := s.Rotate(key, "client-1"); !errors.Is(err, ErrInvalidRefreshToken) {
+			t.Errorf("Rotate() after Revoke error = %v, want ErrInvalidRefreshToken", err)
+		}
+	})
+
+	t.Run("系列ごとに消える", func(t *testing.T) {
+		s := newFixedRefreshTokens(t)
+		key1 := s.Issue("client-1", "u-0001", "openid offline_access")
+		key2, _ := mustRotate(t, s, key1)
+		s.Revoke(key2, "client-1")
+		if len(s.tokens) != 0 {
+			t.Errorf("len(tokens) = %d, want 0 (used key1 must go too)", len(s.tokens))
+		}
+	})
+
+	t.Run("別の系列には影響しない", func(t *testing.T) {
+		s := newFixedRefreshTokens(t)
+		key := s.Issue("client-1", "u-0001", "openid offline_access")
+		other := s.Issue("client-1", "u-0001", "openid offline_access")
+		s.Revoke(key, "client-1")
+		mustRotate(t, s, other)
+	})
+
+	t.Run("別のクライアントは消せない", func(t *testing.T) {
+		s := newFixedRefreshTokens(t)
+		key := s.Issue("client-1", "u-0001", "openid offline_access")
+		s.Revoke(key, "client-2")
+		mustRotate(t, s, key)
+	})
+
+	t.Run("存在しないトークンは何もしない", func(t *testing.T) {
+		s := newFixedRefreshTokens(t)
+		key := s.Issue("client-1", "u-0001", "openid offline_access")
+		s.Revoke("no-such-token", "client-1")
+		mustRotate(t, s, key)
+	})
+}
