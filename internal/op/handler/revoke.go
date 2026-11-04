@@ -27,16 +27,8 @@ func (h *RevokeHandler) Post(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, pass, ok := r.BasicAuth()
-	if !ok {
-		user = r.PostFormValue("client_id")
-		pass = r.PostFormValue("client_secret")
-	}
-	if !h.client.Authenticate(user, pass) {
-		if ok {
-			w.Header().Set("WWW-Authenticate", "Basic realm=\"tegata\"")
-		}
-		writeTokenError(w, http.StatusUnauthorized, errInvalidClient, "client_id or client_secret is invalid")
+	clientID, authed := authenticateClient(w, r, h.client)
+	if !authed {
 		return
 	}
 
@@ -46,7 +38,7 @@ func (h *RevokeHandler) Post(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.revoker.Revoke(token, user)
+	h.revoker.Revoke(token, clientID)
 
 	w.WriteHeader(http.StatusOK)
 }

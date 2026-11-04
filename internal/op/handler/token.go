@@ -16,10 +16,6 @@ import (
 
 const tokenTTL = time.Hour
 
-type ClientAuthenticator interface {
-	Authenticate(clientID, secret string) bool
-}
-
 type RefreshTokenOperator interface {
 	Issue(clientID string, sub string, scope string) string
 	Rotate(key string, clientID string) (string, *store.RefreshToken, error)
@@ -81,24 +77,16 @@ func (h *TokenHandler) Post(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, pass, ok := r.BasicAuth()
-	if !ok {
-		user = r.PostFormValue("client_id")
-		pass = r.PostFormValue("client_secret")
-	}
-	if !h.client.Authenticate(user, pass) {
-		if ok {
-			w.Header().Set("WWW-Authenticate", "Basic realm=\"tegata\"")
-		}
-		writeTokenError(w, http.StatusUnauthorized, errInvalidClient, "client_id or client_secret is invalid")
+	clientID, authed := authenticateClient(w, r, h.client)
+	if !authed {
 		return
 	}
 
 	switch r.PostFormValue("grant_type") {
 	case "authorization_code":
-		h.authorizationCode(w, r, user)
+		h.authorizationCode(w, r, clientID)
 	case "refresh_token":
-		h.refreshToken(w, r, user)
+		h.refreshToken(w, r, clientID)
 	default:
 		writeTokenError(w, http.StatusBadRequest, errUnsupportedGrantType, "grant_type is unsupported")
 	}
