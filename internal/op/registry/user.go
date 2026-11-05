@@ -7,6 +7,8 @@ import (
 	"crypto/subtle"
 	"errors"
 	"fmt"
+	"sync"
+	"uuid"
 )
 
 const (
@@ -14,17 +16,22 @@ const (
 	pbkdf2KeyLen     = 32
 )
 
-var ErrInvalidCredential = errors.New("invalid credential")
+var (
+	ErrInvalidCredential  = errors.New("invalid credential")
+	ErrDuplicatedUsername = errors.New("duplicated username")
+)
 
 type user struct {
-	sub   string
-	salt  []byte
-	hash  []byte
-	name  string
-	email string
+	sub           string
+	salt          []byte
+	hash          []byte
+	name          string
+	email         string
+	emailVerified bool
 }
 
 type Users struct {
+	mu    sync.RWMutex
 	users map[string]*user
 }
 
@@ -44,21 +51,25 @@ func NewUsers(
 	return &Users{
 		users: map[string]*user{
 			seedUsername: {
-				sub:   seedSub,
-				salt:  salt,
-				hash:  hash,
-				name:  seedName,
-				email: seedEmail,
+				sub:           seedSub,
+				salt:          salt,
+				hash:          hash,
+				name:          seedName,
+				email:         seedEmail,
+				emailVerified: true,
 			},
 		},
 	}, nil
 }
 
 func (s *Users) Authenticate(username string, password string) (string, error) {
+	s.mu.RLock()
 	user := s.users[username]
+	s.mu.RUnlock()
 	if user == nil {
 		return "", ErrInvalidCredential
 	}
+
 	hash, err := pbkdf2.Key(sha256.New, password, user.salt, pdkdf2Iterations, pbkdf2KeyLen)
 	if err != nil {
 		return "", fmt.Errorf("derive key: %w", err)
@@ -75,12 +86,15 @@ type Profile struct {
 	Name              string
 	PreferredUsername string
 	Email             string
+	EmailVerified     bool
 }
 
 func (s *Users) FindBySub(sub string) *Profile {
 	var user Profile
 	hasUser := false
 
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	for k, v := range s.users {
 		if v.sub == sub {
 			if hasUser {
@@ -90,6 +104,7 @@ func (s *Users) FindBySub(sub string) *Profile {
 			user.Name = v.name
 			user.PreferredUsername = k
 			user.Email = v.email
+			user.EmailVerified = v.emailVerified
 			hasUser = true
 		}
 	}
@@ -99,4 +114,38 @@ func (s *Users) FindBySub(sub string) *Profile {
 	}
 
 	return &user
+}
+
+func (s *Users) Register(
+	username string,
+	password string,
+	name string,
+	email string,
+) error {
+	salt := make([]byte, 16)
+	rand.Read(salt)
+	hash, err := pbkdf2.Key(sha256.New, password, salt, pdkdf2Iterations, pbkdf2KeyLen)
+	if err != nil {
+		return fmt.Errorf("derive key: %w", err)
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	u := s.users[username]
+	if u != nil {
+		return ErrDuplicatedUsername
+	}
+
+	sub := uuid.New().String()
+	s.users[username] = &user{
+		sub:           sub,
+		salt:          salt,
+		hash:          hash,
+		name:          name,
+		email:         email,
+		emailVerified: false,
+	}
+
+	return nil
 }

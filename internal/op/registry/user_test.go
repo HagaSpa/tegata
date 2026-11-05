@@ -29,6 +29,7 @@ func TestUsers_FindBySub(t *testing.T) {
 				Name:              "name",
 				PreferredUsername: "username",
 				Email:             "haga@gmail.com",
+				EmailVerified:     true,
 			},
 		},
 		{
