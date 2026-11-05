@@ -22,9 +22,9 @@ userinfo_status() {
 
 require_server
 
-check_eq "Discovery: scopes_supported に notes.* がある" \
+check_eq "Discovery: scopes_supported に notes.* と offline_access がある" \
   "$(curl -fsS "$BASE/.well-known/openid-configuration" | jq -c .scopes_supported)" \
-  '["openid","notes.read","notes.write"]'
+  '["openid","notes.read","notes.write","offline_access"]'
 
 check_scope() {
   local scope=$1 want_aud=$2

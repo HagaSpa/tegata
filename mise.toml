@@ -30,5 +30,5 @@ description = "Restart only the OP and watch the RS refetch JWKS for an unknown 
 run = "./scripts/demo-op-restart.sh"
 
 [tasks.smoke]
-description = "Check /authorize, token and resource server behavior (start them with mise serve and mise serve-rs, or mise start)"
-run = ["./scripts/smoke-authorize.sh", "./scripts/smoke-token.sh", "./scripts/smoke-rs.sh"]
+description = "Check /authorize, token, refresh/revoke and resource server behavior (start them with mise serve and mise serve-rs, or mise start)"
+run = ["./scripts/smoke-authorize.sh", "./scripts/smoke-token.sh", "./scripts/smoke-refresh.sh", "./scripts/smoke-rs.sh"]
