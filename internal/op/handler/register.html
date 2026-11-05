@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Tegata SignUp Page</title>
+</head>
+<body>
+    <h2> Tegata OIDC Server </h2>
+    <div align="center">
+        {{if .Error}} Error occured. {{.Error}} {{end}}
+        <form action="/register" method="post">
+            <input type="hidden" name="id" value="{{.ID}}">
+            <table border="0">
+                <tr>
+                    <th>
+                        username
+                    </th>
+                    <td>
+                        <input type="text" name="username" value="" size="24">
+                    </td>
+                </tr>
+                <tr>
+                    <th>
+                        password
+                    </th>
+                    <td>
+                        <input type="password" name="password" value="" size="24">
+                    </td>
+                </tr>
+                <tr>
+                    <th>
+                        name
+                    </th>
+                    <td>
+                        <input type="text" name="name" value="" size="24">
+                    </td>
+                </tr>
+                <tr>
+                    <th>
+                        email
+                    </th>
+                    <td>
+                        <input type="email" name="email" value="" size="24">
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2">
+                      <button type="submit"> register </button>
+                    </td>
+                </tr>
+            </table>
+        </form>
+    </div>
+</body>
+</html>

@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"embed"
 	"html/template"
 	"net/http"
 	"net/url"
@@ -10,9 +9,6 @@ import (
 
 	"github.com/HagaSpa/tegata/internal/op/store"
 )
-
-//go:embed index.html
-var htmlFS embed.FS
 
 type RedirectURIValidator interface {
 	ValidateRedirectURI(clientID string, uri string) bool
@@ -77,7 +73,7 @@ func (h *AuthorizeHandler) Get(w http.ResponseWriter, r *http.Request) {
 	param := templateParam{
 		ID: id,
 	}
-	h.render(w, &param)
+	render(h.file, w, &param)
 }
 
 func (h *AuthorizeHandler) Post(w http.ResponseWriter, r *http.Request) {
@@ -105,7 +101,7 @@ func (h *AuthorizeHandler) Post(w http.ResponseWriter, r *http.Request) {
 			ID:    id,
 			Error: "invalid username or password",
 		}
-		h.render(w, &param)
+		render(h.file, w, &param)
 		return
 	}
 
@@ -132,18 +128,6 @@ func (h *AuthorizeHandler) Post(w http.ResponseWriter, r *http.Request) {
 			values.Set("state", req.State)
 		}
 		redirectToClient(w, r, req.RedirectURI, values)
-	}
-}
-
-type templateParam struct {
-	ID    string
-	Error string
-}
-
-func (h *AuthorizeHandler) render(w http.ResponseWriter, p *templateParam) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := h.file.Execute(w, p); err != nil {
-		writeInternalError(w)
 	}
 }
 
