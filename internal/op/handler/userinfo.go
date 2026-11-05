@@ -79,7 +79,7 @@ func (h *UserInfoHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 	if slices.Contains(strings.Fields(claim.Scope), "email") {
 		v.Email = user.Email
-		v.EmailVerified = new(true)
+		v.EmailVerified = &user.EmailVerified
 	}
 	w.Header().Set("Cache-Control", "no-store")
 	writeJSON(w, http.StatusOK, v)
