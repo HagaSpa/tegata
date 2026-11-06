@@ -3,6 +3,7 @@ package registry
 import (
 	"errors"
 	"reflect"
+	"sync"
 	"testing"
 	"uuid"
 )
@@ -162,5 +163,67 @@ func TestUsers_Register_DuplicatedUsername(t *testing.T) {
 				t.Errorf("Authenticate() with the original password error = %v", err)
 			}
 		})
+	}
+}
+
+func TestUsers_Register_Concurrent(t *testing.T) {
+	s, err := NewUsers("username", "password", "sub", "name", "haga@gmail.com")
+	if err != nil {
+		t.Fatalf("could not construct receiver type: %v", err)
+	}
+
+	const n = 10
+	errs := make([]error, n)
+	var writes sync.WaitGroup
+	for i := range n {
+		writes.Go(func() {
+			errs[i] = s.Register(RegisterUserInfo{Username: "alice", Password: "correct horse battery"})
+		})
+	}
+	done := make(chan struct{})
+	var readers sync.WaitGroup
+	readers.Go(func() {
+		for {
+			select {
+			case <-done:
+				return
+			default:
+			}
+			if s.FindBySub("sub") == nil {
+				t.Errorf("FindBySub() = nil while registering")
+				return
+			}
+		}
+	})
+	readers.Go(func() {
+		for {
+			select {
+			case <-done:
+				return
+			default:
+			}
+			if _, err := s.Authenticate("username", "password"); err != nil {
+				t.Errorf("Authenticate() error = %v while registering", err)
+				return
+			}
+		}
+	})
+
+	writes.Wait()
+	close(done)
+	readers.Wait()
+
+	succeeded := 0
+	for _, err := range errs {
+		switch {
+		case err == nil:
+			succeeded++
+		case errors.Is(err, ErrDuplicatedUsername):
+		default:
+			t.Errorf("Register() error = %v", err)
+		}
+	}
+	if succeeded != 1 {
+		t.Errorf("succeeded = %d, want 1", succeeded)
 	}
 }
