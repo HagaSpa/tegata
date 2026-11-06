@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"sync"
 	"testing"
+	"time"
 	"uuid"
 )
 
@@ -225,5 +226,28 @@ func TestUsers_Register_Concurrent(t *testing.T) {
 	}
 	if succeeded != 1 {
 		t.Errorf("succeeded = %d, want 1", succeeded)
+	}
+}
+
+func TestUsers_Register_AfterUnknownUsername(t *testing.T) {
+	s, err := NewUsers("username", "password", "sub", "name", "haga@gmail.com")
+	if err != nil {
+		t.Fatalf("could not construct receiver type: %v", err)
+	}
+	if _, err := s.Authenticate("nobody", "password"); !errors.Is(err, ErrInvalidCredential) {
+		t.Fatalf("Authenticate() error = %v, want %v", err, ErrInvalidCredential)
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		done <- s.Register(RegisterUserInfo{Username: "alice", Password: "correct horse battery"})
+	}()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Errorf("Register() error = %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatalf("Register() is blocked after Authenticate() with an unknown username")
 	}
 }
