@@ -1,6 +1,21 @@
 name: tegata-conformance
 
 services:
+  tegata:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        TARGET: op
+    environment:
+      - TZ=Asia/Tokyo
+      - ISSUER=http://tegata.localhost:8080
+    ports:
+      - "8080:8080"
+    networks:
+      default:
+        aliases:
+          - tegata.localhost
   mongodb:
     image: mongo:6.0.13@sha256:b415b12f638e2685d06c58ab7fb5943577c50fadec6d9340ef67d21aeac72070
     volumes:
@@ -27,10 +42,14 @@ services:
       OIDC_GOOGLE_SECRET: google-secret
       OIDC_GITLAB_CLIENTID: gitlab-client
       OIDC_GITLAB_SECRET: gitlab-secret
-    extra_hosts:
-      - "tegata.localhost:host-gateway"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "-H", "X-Forwarded-Proto: https", "http://localhost:8080/api/runner/available"]
+      interval: 2s
+      timeout: 2s
+      retries: 60
     depends_on:
       - mongodb
+      - tegata
 
 volumes:
   mongodb:

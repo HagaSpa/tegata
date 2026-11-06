@@ -30,21 +30,17 @@ description = "Restart only the OP and watch the RS refetch JWKS for an unknown 
 run = "./scripts/demo-op-restart.sh"
 
 [tasks.conformance]
-description = "Start the OpenID conformance suite in the background (https://localhost.emobix.co.uk:8443)"
-run = "docker compose -f compose.conformance.yaml up -d"
+description = "Build and start tegata and the OpenID conformance suite in the background, and wait until the suite is ready (https://localhost.emobix.co.uk:8443)"
+run = "docker compose -f compose.conformance.yaml up -d --build --wait"
 
 [tasks.conformance-stop]
-description = "Stop the conformance suite (results stay in the mongodb volume)"
+description = "Stop tegata and the conformance suite (results stay in the mongodb volume)"
 run = "docker compose -f compose.conformance.yaml down"
 
-[tasks.serve-conformance]
-description = "Run tegata locally with the issuer the conformance suite can reach (http://tegata.localhost:8080)"
-env = { ISSUER = "http://tegata.localhost:8080" }
-run = "go run ./cmd/op"
-
-[tasks.conformance-plans]
-description = "Create Basic OP and Config OP test plans in the conformance suite and print their URLs (needs mise conformance and mise serve-conformance)"
-run = "./scripts/conformance-plans.sh"
+[tasks.conformance-test]
+description = "Start tegata and the conformance suite, then run the Basic OP and Config OP tests and print the results (e.g. mise conformance-test basic oidcc-server)"
+depends = ["conformance"]
+run = "./scripts/conformance-test.sh"
 
 [tasks.smoke]
 description = "Check /authorize, /register, token, refresh/revoke and resource server behavior (start them with mise serve and mise serve-rs, or mise start)"
