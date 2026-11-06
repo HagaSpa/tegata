@@ -1,6 +1,8 @@
 package registry
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestClients_ValidateRedirectURI(t *testing.T) {
 	tests := []struct {
