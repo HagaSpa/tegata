@@ -116,15 +116,19 @@ func (s *Users) FindBySub(sub string) *Profile {
 	return &user
 }
 
+type RegisterUserInfo struct {
+	Username string
+	Password string
+	Name     string
+	Email    string
+}
+
 func (s *Users) Register(
-	username string,
-	password string,
-	name string,
-	email string,
+	info RegisterUserInfo,
 ) error {
 	salt := make([]byte, 16)
 	rand.Read(salt)
-	hash, err := pbkdf2.Key(sha256.New, password, salt, pdkdf2Iterations, pbkdf2KeyLen)
+	hash, err := pbkdf2.Key(sha256.New, info.Password, salt, pdkdf2Iterations, pbkdf2KeyLen)
 	if err != nil {
 		return fmt.Errorf("derive key: %w", err)
 	}
@@ -132,18 +136,18 @@ func (s *Users) Register(
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	u := s.users[username]
+	u := s.users[info.Username]
 	if u != nil {
 		return ErrDuplicatedUsername
 	}
 
 	sub := uuid.New().String()
-	s.users[username] = &user{
+	s.users[info.Username] = &user{
 		sub:           sub,
 		salt:          salt,
 		hash:          hash,
-		name:          name,
-		email:         email,
+		name:          info.Name,
+		email:         info.Email,
 		emailVerified: false,
 	}
 

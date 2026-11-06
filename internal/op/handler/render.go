@@ -11,8 +11,9 @@ import (
 var htmlFS embed.FS
 
 type templateParam struct {
-	ID    string
-	Error string
+	ID      string
+	Error   string
+	Message string
 }
 
 func render(

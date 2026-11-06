@@ -62,6 +62,7 @@ func main() {
 	mux.HandleFunc("GET /userinfo", useinfoHandler.Get)
 	mux.HandleFunc("POST /revoke", revokeHandler.Post)
 	mux.HandleFunc("GET /register", registerHandler.Get)
+	mux.HandleFunc("POST /register", registerHandler.Post)
 
 	fmt.Println("Serving on :8080...")
 	log.Fatal(http.ListenAndServe(":8080", mux))
