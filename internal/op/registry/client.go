@@ -29,6 +29,12 @@ func NewClients() *Clients {
 					"http://127.0.0.1:5556/callback",
 				},
 			},
+			"conformance": {
+				Secret: "conformance-secret",
+				RedirectURIs: []string{
+					"https://localhost.emobix.co.uk:8443/test/a/tegata/callback",
+				},
+			},
 		},
 	}
 }

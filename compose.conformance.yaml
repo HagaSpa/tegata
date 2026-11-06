@@ -1,0 +1,36 @@
+name: tegata-conformance
+
+services:
+  mongodb:
+    image: mongo:6.0.13@sha256:b415b12f638e2685d06c58ab7fb5943577c50fadec6d9340ef67d21aeac72070
+    volumes:
+      - mongodb:/data/db
+  nginx:
+    image: registry.gitlab.com/openid/conformance-suite/nginx:latest@sha256:72e60c130bf34383c36aec26257177d683145452e5d1c400f93697d3c9baedae
+    ports:
+      - "8443:8443"
+      - "8444:8444"
+    networks:
+      default:
+        aliases:
+          - localhost.emobix.co.uk
+    depends_on:
+      - server
+  server:
+    image: registry.gitlab.com/openid/conformance-suite:latest@sha256:7315344ef4f5e6cb41e8ce469914234c6ec8d9ac20768324c2ecc9a084490dc1
+    environment:
+      BASE_URL: https://localhost.emobix.co.uk:8443
+      BASE_MTLS_URL: https://localhost.emobix.co.uk:8444
+      MONGODB_HOST: mongodb
+      SPRING_PROFILES_ACTIVE: dev
+      OIDC_GOOGLE_CLIENTID: google-client
+      OIDC_GOOGLE_SECRET: google-secret
+      OIDC_GITLAB_CLIENTID: gitlab-client
+      OIDC_GITLAB_SECRET: gitlab-secret
+    extra_hosts:
+      - "tegata.localhost:host-gateway"
+    depends_on:
+      - mongodb
+
+volumes:
+  mongodb:
