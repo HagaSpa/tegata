@@ -1,6 +1,7 @@
 package registry
 
 import (
+	"errors"
 	"reflect"
 	"testing"
 	"uuid"
@@ -111,6 +112,54 @@ func TestUsers_Register(t *testing.T) {
 			got := s.FindBySub(sub)
 			if !reflect.DeepEqual(got, &want) {
 				t.Errorf("FindBySub() = %v, want %v", got, &want)
+			}
+		})
+	}
+}
+
+func TestUsers_Register_DuplicatedUsername(t *testing.T) {
+	tests := []struct {
+		name       string
+		registered []RegisterUserInfo
+		info       RegisterUserInfo
+		password   string
+	}{
+		{
+			name: "シードと同じ username は登録できない",
+			info: RegisterUserInfo{
+				Username: "username",
+				Password: "another password",
+			},
+			password: "password",
+		},
+		{
+			name: "既に登録済みの username は登録できない",
+			registered: []RegisterUserInfo{
+				{Username: "alice", Password: "correct horse battery"},
+			},
+			info: RegisterUserInfo{
+				Username: "alice",
+				Password: "another password",
+			},
+			password: "correct horse battery",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s, err := NewUsers("username", "password", "sub", "name", "haga@gmail.com")
+			if err != nil {
+				t.Fatalf("could not construct receiver type: %v", err)
+			}
+			for _, r := range tt.registered {
+				if err := s.Register(r); err != nil {
+					t.Fatalf("Register() error = %v", err)
+				}
+			}
+			if err := s.Register(tt.info); !errors.Is(err, ErrDuplicatedUsername) {
+				t.Errorf("Register() error = %v, want %v", err, ErrDuplicatedUsername)
+			}
+			if _, err := s.Authenticate(tt.info.Username, tt.password); err != nil {
+				t.Errorf("Authenticate() with the original password error = %v", err)
 			}
 		})
 	}
