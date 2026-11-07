@@ -25,6 +25,7 @@ type openIDConfiguration struct {
 	UserinfoEndpoint                       string   `json:"userinfo_endpoint"`
 	JwksUri                                string   `json:"jwks_uri"`
 	RevocationEndpoint                     string   `json:"revocation_endpoint"`
+	RequestURIParameterSupported           bool     `json:"request_uri_parameter_supported"`
 	ResponseTypesSupported                 []string `json:"response_types_supported"`
 	SubjectTypesSupported                  []string `json:"subject_types_supported"`
 	IdTokenSigningAlgValuesSupported       []string `json:"id_token_signing_alg_values_supported"`
@@ -43,10 +44,11 @@ func newOpenIDConfiguration(issuer string) *openIDConfiguration {
 		UserinfoEndpoint:                       issuer + "/userinfo",
 		JwksUri:                                issuer + "/.well-known/jwks.json",
 		RevocationEndpoint:                     issuer + "/revoke",
+		RequestURIParameterSupported:           false,
 		ResponseTypesSupported:                 []string{"code"},
 		SubjectTypesSupported:                  []string{"public"},
 		IdTokenSigningAlgValuesSupported:       []string{"RS256"},
-		ScopesSupported:                        []string{"openid", "notes.read", "notes.write", "offline_access"},
+		ScopesSupported:                        []string{"openid", "notes.read", "notes.write", "offline_access", "profile", "email"},
 		TokenEndpointAuthMethodsSupported:      []string{"client_secret_post", "client_secret_basic"},
 		CodeChallengeMethodsSupported:          []string{"S256"},
 		GrantTypesSupported:                    []string{"authorization_code", "refresh_token"},

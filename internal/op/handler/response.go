@@ -19,6 +19,8 @@ const (
 	errInvalidClient           errorCode = "invalid_client"
 	errInvalidGrant            errorCode = "invalid_grant"
 	errUnsupportedGrantType    errorCode = "unsupported_grant_type"
+	errNotSupportedRequest     errorCode = "request_not_supported"
+	errNotSupportedRequestURI  errorCode = "request_uri_not_supported"
 )
 
 func redirectAuthorizationError(

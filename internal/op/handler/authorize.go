@@ -65,6 +65,14 @@ func (h *AuthorizeHandler) Get(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid client_id or redirect_uri", http.StatusBadRequest)
 		return
 	}
+	if r.URL.Query().Get("request") != "" {
+		redirectAuthorizationError(w, r, req, errNotSupportedRequest, "request not supported")
+		return
+	}
+	if r.URL.Query().Get("request_uri") != "" {
+		redirectAuthorizationError(w, r, req, errNotSupportedRequestURI, "request_uri not supported")
+		return
+	}
 	if code, desc := validateAuthorizeRequest(req); code != "" {
 		redirectAuthorizationError(w, r, req, code, desc)
 		return
