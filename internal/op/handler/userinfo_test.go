@@ -40,7 +40,7 @@ func getUserInfo(h *UserInfoHandler, authorization string) *httptest.ResponseRec
 	if authorization != "" {
 		req.Header.Set("authorization", authorization)
 	}
-	h.Get(rec, req)
+	h.ServeHTTP(rec, req)
 	return rec
 }
 
