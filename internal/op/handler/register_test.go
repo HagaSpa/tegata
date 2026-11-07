@@ -110,15 +110,15 @@ func TestRegisterHandler_Post(t *testing.T) {
 		wantPage     string
 		wantMessage  string
 	}{
-		{"登録できたらログイン画面に戻る", nil, nil, http.StatusOK, true, "/authorize", success},
-		{"name と email は空でも許可", func(f url.Values) { f.Del("name"); f.Del("email") }, nil, http.StatusOK, true, "/authorize", success},
+		{"登録できたらログイン画面に戻る", nil, nil, http.StatusOK, true, "/login", success},
+		{"name と email は空でも許可", func(f url.Values) { f.Del("name"); f.Del("email") }, nil, http.StatusOK, true, "/login", success},
 		{"username が空は再表示", func(f url.Values) { f.Set("username", "") }, nil, http.StatusOK, false, "/register", required},
 		{"パスワード 14 文字は再表示", password(strings.Repeat("a", 14)), nil, http.StatusOK, false, "/register", length},
-		{"パスワード 15 文字は登録できる", password(strings.Repeat("a", 15)), nil, http.StatusOK, true, "/authorize", success},
-		{"パスワード 64 文字は登録できる", password(strings.Repeat("a", 64)), nil, http.StatusOK, true, "/authorize", success},
+		{"パスワード 15 文字は登録できる", password(strings.Repeat("a", 15)), nil, http.StatusOK, true, "/login", success},
+		{"パスワード 64 文字は登録できる", password(strings.Repeat("a", 64)), nil, http.StatusOK, true, "/login", success},
 		{"パスワード 65 文字は再表示", password(strings.Repeat("a", 65)), nil, http.StatusOK, false, "/register", length},
 		{"日本語 14 文字は再表示", password(strings.Repeat("あ", 14)), nil, http.StatusOK, false, "/register", length},
-		{"日本語 64 文字は登録できる", password(strings.Repeat("あ", 64)), nil, http.StatusOK, true, "/authorize", success},
+		{"日本語 64 文字は登録できる", password(strings.Repeat("あ", 64)), nil, http.StatusOK, true, "/login", success},
 		{"同じ usename は再表示", nil, registry.ErrDuplicatedUsername, http.StatusOK, true, "/register", duplicate},
 		{"Register の失敗は 500", nil, errors.New("boom"), http.StatusInternalServerError, true, "", ""},
 		{"存在しない id は 400", func(f url.Values) { f.Set("id", "bogus") }, nil, http.StatusBadRequest, false, "", ""},
@@ -178,7 +178,7 @@ func TestRegisterHandler_PostThenLogin(t *testing.T) {
 	reqs := store.NewAuthorizeRequests()
 	codes := store.NewCodes()
 	rh := NewRegisterHandler(reqs, u)
-	ah := NewAuthorizeHandler(registry.NewClients(), u, codes, reqs)
+	lh := NewLoginHandler(registry.NewClients(), u, codes, reqs)
 
 	id := idFromBody(t, getRegister(rh, saveRequest(t, reqs, nil)).Body.String())
 	page := postRegister(rh, registerForm(id))
@@ -189,7 +189,7 @@ func TestRegisterHandler_PostThenLogin(t *testing.T) {
 	login := loginForm(idFromBody(t, page.Body.String()))
 	login.Set("username", "alice")
 	login.Set("password", "correct horse battery")
-	q := redirectQuery(t, postAuthorize(ah, login))
+	q := redirectQuery(t, postLogin(lh, login))
 
 	code, err := codes.Consume(q.Get("code"))
 	if err != nil {

@@ -9,7 +9,7 @@
     <div align="center">
         {{if .Error}} Error occured. {{.Error}} {{end}}
         {{if .Message}} {{.Message}} {{end}}
-        <form action="/authorize" method="post">
+        <form action="/login" method="post">
             <input type="hidden" name="id" value="{{.ID}}">
             <table border="0">
                 <tr>

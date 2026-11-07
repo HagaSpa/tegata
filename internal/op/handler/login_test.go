@@ -1,0 +1,184 @@
+package handler
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"strings"
+	"testing"
+
+	"github.com/HagaSpa/tegata/internal/op/registry"
+	"github.com/HagaSpa/tegata/internal/op/store"
+)
+
+func newLoginHandler(t *testing.T) (*LoginHandler, *store.AuthorizeRequests, *store.Codes) {
+	t.Helper()
+	cl := registry.NewClients()
+	u, err := registry.NewUsers(
+		"username",
+		"password",
+		"u-0001",
+		"hagaspa",
+		"justicesparrow13@gmail.com",
+	)
+	if err != nil {
+		t.Fatal("failed initilize")
+	}
+	co := store.NewCodes()
+	ar := store.NewAuthorizeRequests()
+	h := NewLoginHandler(cl, u, co, ar)
+	return h, ar, co
+}
+
+func postLogin(h *LoginHandler, f url.Values) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(f.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	h.Post(rec, req)
+	return rec
+}
+
+func TestLoginHandler_Post(t *testing.T) {
+	tests := []struct {
+		name       string
+		editForm   func(f url.Values)
+		wantStatus int
+		wantError  string
+	}{
+		{"承認で code が返る", nil, http.StatusFound, ""},
+		{"拒否は access_denied", func(f url.Values) { f.Set("action", "deny") }, http.StatusFound, "access_denied"},
+		{"パスワード違いは再表示", func(f url.Values) { f.Set("password", "wrong") }, http.StatusOK, ""},
+		{"ユーザ不在も再表示", func(f url.Values) { f.Set("username", "nobody") }, http.StatusOK, ""},
+		{"action 不正は 400", func(f url.Values) { f.Set("action", "x") }, http.StatusBadRequest, ""},
+		{"action なしは 400", func(f url.Values) { f.Del("action") }, http.StatusBadRequest, ""},
+		{"存在しない id は 400", func(f url.Values) { f.Set("id", "bogus") }, http.StatusBadRequest, ""},
+		{"id なしは 400", func(f url.Values) { f.Del("id") }, http.StatusBadRequest, ""},
+		{"フォームの redirect_uri は無視する", func(f url.Values) { f.Set("redirect_uri", "http://evil/cb") }, http.StatusFound, ""},
+	}
+
+	h, reqs, _ := newLoginHandler(t)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			id := saveRequest(t, reqs, nil)
+			f := loginForm(id)
+			if tt.editForm != nil {
+				tt.editForm(f)
+			}
+			rec := postLogin(h, f)
+			if rec.Code != tt.wantStatus {
+				t.Fatalf("status = %d, want %d (body %q)", rec.Code, tt.wantStatus, rec.Body.String())
+			}
+
+			switch tt.wantStatus {
+			case http.StatusOK:
+				body := rec.Body.String()
+				if !strings.Contains(body, "invalid username or password") {
+					t.Errorf("re-rendered page must show the error: %q", body)
+				}
+				if got := idFromBody(t, body); got != id {
+					t.Errorf("re-rendered id = %q, want %q", got, id)
+				}
+			case http.StatusBadRequest:
+				assertBadRequest(t, rec)
+			case http.StatusFound:
+				lq := redirectQuery(t, rec)
+				if got := lq.Get("error"); got != tt.wantError {
+					t.Errorf("error = %q, want %q", got, tt.wantError)
+				}
+				if wantCode := tt.wantError == ""; lq.Has("code") != wantCode {
+					t.Errorf("code present = %v, want %v", lq.Has("code"), wantCode)
+				}
+				if got := lq.Get("state"); got != testState {
+					t.Errorf("state = %q, want %q", got, testState)
+				}
+			}
+		})
+	}
+}
+
+func TestLoginHandler_Post_RetryAfterWrongPassword(t *testing.T) {
+	h, reqs, _ := newLoginHandler(t)
+	id := saveRequest(t, reqs, nil)
+
+	wrong := loginForm(id)
+	wrong.Set("password", "wrong")
+	if rec := postLogin(h, wrong); rec.Code != http.StatusOK {
+		t.Fatalf("wrong password status = %d, want 200", rec.Code)
+	}
+
+	if q := redirectQuery(t, postLogin(h, loginForm(id))); !q.Has("code") {
+		t.Errorf("retry must issue a code: %v", q)
+	}
+}
+
+func TestLoginHandler_Post_ApproveIsSingleUse(t *testing.T) {
+	h, reqs, _ := newLoginHandler(t)
+	id := saveRequest(t, reqs, nil)
+
+	redirectQuery(t, postLogin(h, loginForm(id)))
+	assertBadRequest(t, postLogin(h, loginForm(id)))
+}
+
+func TestLoginHandler_Post_DenyConsumesRequest(t *testing.T) {
+	h, reqs, _ := newLoginHandler(t)
+	id := saveRequest(t, reqs, nil)
+
+	deny := loginForm(id)
+	deny.Set("action", "deny")
+	redirectQuery(t, postLogin(h, deny))
+	assertBadRequest(t, postLogin(h, loginForm(id)))
+}
+
+func TestLoginHandler_Post_InvalidActionKeepsRequest(t *testing.T) {
+	h, reqs, _ := newLoginHandler(t)
+	id := saveRequest(t, reqs, nil)
+
+	invalid := loginForm(id)
+	invalid.Set("action", "x")
+	assertBadRequest(t, postLogin(h, invalid))
+
+	if q := redirectQuery(t, postLogin(h, loginForm(id))); !q.Has("code") {
+		t.Errorf("approve after invalid action must issue a code: %v", q)
+	}
+}
+
+func TestLoginHandler_Post_IssuesCodeFromSavedRequest(t *testing.T) {
+	h, reqs, codes := newLoginHandler(t)
+	id := saveRequest(t, reqs, func(r *store.AuthorizeRequest) {
+		r.Scope = "openid profile"
+		r.Nonce = "nonce-saved"
+		r.CodeChallenge = "challenge-saved"
+	})
+
+	f := loginForm(id)
+	f.Set("scope", "openid email")
+	f.Set("nonce", "nonce-form")
+	f.Set("code_challenge", "challenge-form")
+	q := redirectQuery(t, postLogin(h, f))
+
+	got, err := codes.Consume(q.Get("code"))
+	if err != nil {
+		t.Fatalf("Consume() failed: %v", err)
+	}
+	if got.ClientID != "tegata-sample" || got.RedirectURI != "http://localhost:9999/callback" ||
+		got.Scope != "openid profile" || got.Nonce != "nonce-saved" ||
+		got.CodeChallenge != "challenge-saved" || got.Sub != "u-0001" {
+		t.Errorf("code = %+v, want values from the saved request", *got)
+	}
+}
+
+func TestLoginHandler_Post_OmitsStateWhenAbsent(t *testing.T) {
+	h, reqs, _ := newLoginHandler(t)
+	id := saveRequest(t, reqs, func(r *store.AuthorizeRequest) { r.State = "" })
+
+	if q := redirectQuery(t, postLogin(h, loginForm(id))); q.Has("state") {
+		t.Errorf("Location must not contain state: %v", q)
+	}
+}
+
+func TestLoginHandler_Post_RejectsUnregisteredClient(t *testing.T) {
+	h, reqs, _ := newLoginHandler(t)
+	id := saveRequest(t, reqs, func(r *store.AuthorizeRequest) { r.ClientID = "unknown" })
+
+	assertBadRequest(t, postLogin(h, loginForm(id)))
+}
