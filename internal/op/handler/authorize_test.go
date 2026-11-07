@@ -134,6 +134,8 @@ func TestAuthorizeHandler_Get(t *testing.T) {
 		{"code_challenge なし", func(q url.Values) { q.Del("code_challenge") }, http.StatusOK, ""},
 		{"method が plain", func(q url.Values) { q.Set("code_challenge_method", "plain") }, http.StatusFound, "invalid_request"},
 		{"state なしで失敗", func(q url.Values) { q.Del("state"); q.Set("response_type", "token") }, http.StatusFound, "unsupported_response_type"},
+		{"request をつけると失敗", func(q url.Values) { q.Set("request", "aaa") }, http.StatusFound, "request_not_supported"},
+		{"request_uri をつけると失敗", func(q url.Values) { q.Set("request_uri", "aaa") }, http.StatusFound, "request_uri_not_supported"},
 	}
 
 	h, _, _ := newAuthorizeHandler(t)
