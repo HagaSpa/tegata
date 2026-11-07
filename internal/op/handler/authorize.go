@@ -151,10 +151,7 @@ func validateAuthorizeRequest(r *store.AuthorizeRequest) (errorCode, string) {
 	if !slices.Contains(strings.Fields(r.Scope), "openid") {
 		return errInvalidScope, "scope must contain openid"
 	}
-	if r.CodeChallenge == "" {
-		return errInvalidRequest, "code_challenge is required"
-	}
-	if r.CodeChallengeMethod != "S256" {
+	if r.CodeChallenge != "" && r.CodeChallengeMethod != "S256" {
 		return errInvalidRequest, "code_challenge_method needs S256"
 	}
 	return "", ""

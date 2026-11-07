@@ -115,14 +115,21 @@ func (h *TokenHandler) authorizationCode(
 		return
 	}
 
-	now := h.now()
-	sum := sha256.Sum256([]byte(r.PostFormValue("code_verifier")))
-	got := base64.RawURLEncoding.EncodeToString(sum[:])
-	if subtle.ConstantTimeCompare([]byte(got), []byte(code.CodeChallenge)) != 1 {
-		writeTokenError(w, http.StatusBadRequest, errInvalidGrant, "code_verifier is invalid")
-		return
+	if code.CodeChallenge != "" {
+		sum := sha256.Sum256([]byte(r.PostFormValue("code_verifier")))
+		got := base64.RawURLEncoding.EncodeToString(sum[:])
+		if subtle.ConstantTimeCompare([]byte(got), []byte(code.CodeChallenge)) != 1 {
+			writeTokenError(w, http.StatusBadRequest, errInvalidGrant, "code_verifier is invalid")
+			return
+		}
+	} else {
+		if r.PostFormValue("code_verifier") != "" {
+			writeTokenError(w, http.StatusBadRequest, errInvalidGrant, "code_verifier is invalid")
+			return
+		}
 	}
 
+	now := h.now()
 	idToken, err := h.signer.Sign(&jwt.Claims{
 		Iss:   h.issuer,
 		Sub:   code.Sub,

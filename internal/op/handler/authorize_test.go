@@ -131,9 +131,9 @@ func TestAuthorizeHandler_Get(t *testing.T) {
 		{"response_type が token", func(q url.Values) { q.Set("response_type", "token") }, http.StatusFound, "unsupported_response_type"},
 		{"scope に openid がない", func(q url.Values) { q.Set("scope", "profile") }, http.StatusFound, "invalid_scope"},
 		{"scope が複数", func(q url.Values) { q.Set("scope", "openid profile email") }, http.StatusOK, ""},
-		{"code_challenge なし", func(q url.Values) { q.Del("code_challenge") }, http.StatusFound, "invalid_request"},
+		{"code_challenge なし", func(q url.Values) { q.Del("code_challenge") }, http.StatusOK, ""},
 		{"method が plain", func(q url.Values) { q.Set("code_challenge_method", "plain") }, http.StatusFound, "invalid_request"},
-		{"state なしで失敗", func(q url.Values) { q.Del("state"); q.Del("code_challenge") }, http.StatusFound, "invalid_request"},
+		{"state なしで失敗", func(q url.Values) { q.Del("state"); q.Set("response_type", "token") }, http.StatusFound, "unsupported_response_type"},
 	}
 
 	h, _, _ := newAuthorizeHandler(t)

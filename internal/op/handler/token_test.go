@@ -220,6 +220,44 @@ func TestTokenHandler_Post_WrongVerifierBurnsCode(t *testing.T) {
 	}
 }
 
+func TestTokenHandler_Post_WithoutPKCE(t *testing.T) {
+	tests := []struct {
+		name       string
+		editForm   func(f url.Values)
+		wantStatus int
+		wantError  string
+	}{
+		{"code_verifier なしなら交換できる", func(f url.Values) { f.Del("code_verifier") }, http.StatusOK, ""},
+		{"code_verifier ありは invalid_grant", nil, http.StatusBadRequest, "invalid_grant"},
+	}
+
+	h, codes := newTokenHandler(t)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			code := codes.Issue("tegata-sample", "http://localhost:9999/callback", "openid", "", testNonce, "u-0001")
+			f := validTokenForm(code)
+			if tt.editForm != nil {
+				tt.editForm(f)
+			}
+
+			rec := postToken(h, f, false)
+			if rec.Code != tt.wantStatus {
+				t.Fatalf("status = %d, want %d (body %q)", rec.Code, tt.wantStatus, rec.Body.String())
+			}
+			body := decodeJSON(t, rec)
+			if tt.wantError != "" {
+				if got := body["error"]; got != tt.wantError {
+					t.Errorf("error = %v, want %q", got, tt.wantError)
+				}
+				return
+			}
+			if id, _ := body["id_token"].(string); id == "" {
+				t.Errorf("response has no id_token: %v", body)
+			}
+		})
+	}
+}
+
 func TestTokenHandler_Post_OmitsNonceWhenAbsent(t *testing.T) {
 	h, codes := newTokenHandler(t)
 	code := issueCode(t, codes, "openid", testVerifier, "")
