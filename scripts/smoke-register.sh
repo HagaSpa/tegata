@@ -45,7 +45,7 @@ register() {
 login() {
   location=$(curl -sS -o /dev/null -w '%{http_code} %{redirect_url}' \
     --data-urlencode "id=$1" --data-urlencode "username=$2" --data-urlencode "password=$3" \
-    -d action=approve "$BASE/authorize")
+    -d action=approve "$BASE/login")
 }
 
 userinfo() {
@@ -68,7 +68,7 @@ check_eq "GET: 存在しない id は 400" "$status" 400
 
 alice="$PREFIX-alice"
 register "$id" "$alice" "$PASSWORD" alice@example.com
-check_eq "登録: ログイン画面に同じ id で戻る" "$page" "200 | Sign Up is success. | /authorize | $id"
+check_eq "登録: ログイン画面に同じ id で戻る" "$page" "200 | Sign Up is success. | /login | $id"
 
 login "$id" "$alice" "$PASSWORD"
 check "登録: 戻った id のまま新しいユーザーでログインできる" "$location" "^302 $CALLBACK\\?code=[A-Za-z0-9_-]{43}&state=smoke-state\$"
@@ -80,7 +80,7 @@ check_eq "userinfo: email と email_verified=false" "$(jq -c '[.email, .email_ve
 id=$(new_id)
 jp="$PREFIX-jp"
 register "$id" "$jp" "パスワードパスワードパスワード"
-check_eq "日本語 15 文字・email なし: 登録できる" "$page" "200 | Sign Up is success. | /authorize | $id"
+check_eq "日本語 15 文字・email なし: 登録できる" "$page" "200 | Sign Up is success. | /login | $id"
 login "$id" "$jp" "パスワードパスワードパスワード"
 check "日本語 15 文字・email なし: ログインできる" "$location" "^302 $CALLBACK\\?code="
 check_eq "email なし: userinfo は email も email_verified も返さない" \

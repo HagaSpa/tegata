@@ -17,7 +17,7 @@ new_id() {
 }
 
 post() {
-  curl -sS -o /dev/null -w '%{http_code} %{redirect_url}' -d "$1" "$BASE/authorize"
+  curl -sS -o /dev/null -w '%{http_code} %{redirect_url}' -d "$1" "$BASE/login"
 }
 
 require_server
@@ -27,8 +27,14 @@ check "GET: hidden は 1 個だけ" "$(grep -c 'type="hidden"' <<<"$page")" '^1$
 check "GET: hidden は id" "$(grep 'type="hidden"' <<<"$page")" 'name="id" value="[A-Za-z0-9_-]{43}"'
 check "GET: state はページに出ない" "$(grep -c "$STATE" <<<"$page" || true)" '^0$'
 
+page=$(curl -fsS -d "$QUERY" "$BASE/authorize")
+check "POST: 本文の認可リクエストでもログイン画面を返す" "$(grep 'type="hidden"' <<<"$page")" 'name="id" value="[A-Za-z0-9_-]{43}"'
+id=$(sed -n 's/.*name="id" value="\([^"]*\)".*/\1/p' <<<"$page")
+check "POST: そのままログインすると code と state を返す" \
+  "$(post "id=$id&$LOGIN&action=approve")" "^302 $CALLBACK\\?code=[A-Za-z0-9_-]{43}&state=$STATE\$"
+
 id=$(new_id)
-retry=$(curl -sS -d "id=$id&username=username&password=wrong&action=approve" "$BASE/authorize")
+retry=$(curl -sS -d "id=$id&username=username&password=wrong&action=approve" "$BASE/login")
 check "パスワード違い: エラーを表示する" "$retry" 'invalid username or password'
 check "パスワード違い: 同じ id で再表示する" "$retry" "name=\"id\" value=\"$id\""
 

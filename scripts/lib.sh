@@ -30,7 +30,7 @@ get_tokens() {
   local query="client_id=tegata-sample&redirect_uri=${CALLBACK}&response_type=code&scope=$1&state=smoke-state&nonce=smoke-nonce&code_challenge=${CHALLENGE}&code_challenge_method=S256"
   local id code
   id=$(curl -fsS "$BASE/authorize?$query" | sed -n 's/.*name="id" value="\([^"]*\)".*/\1/p')
-  code=$(curl -sS -o /dev/null -w '%{redirect_url}' -d "id=$id&username=username&password=password&action=approve" "$BASE/authorize" | sed -n 's/.*code=\([^&]*\).*/\1/p')
+  code=$(curl -sS -o /dev/null -w '%{redirect_url}' -d "id=$id&username=username&password=password&action=approve" "$BASE/login" | sed -n 's/.*code=\([^&]*\).*/\1/p')
   curl -sS -u tegata-sample:dummy-secret \
     -d "grant_type=authorization_code&code=$code&redirect_uri=$CALLBACK&code_verifier=$VERIFIER" \
     "$BASE/token"
