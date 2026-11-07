@@ -44,7 +44,7 @@ type userInfoResponse struct {
 	EmailVerified     *bool  `json:"email_verified,omitempty"`
 }
 
-func (h *UserInfoHandler) Get(w http.ResponseWriter, r *http.Request) {
+func (h *UserInfoHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	token, ok := bearer.Token(r)
 	if !ok {
 		bearer.WriteMissingToken(w)
