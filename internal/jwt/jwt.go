@@ -17,13 +17,14 @@ import (
 var ErrExpired = errors.New("expired")
 
 type Claims struct {
-	Iss   string   `json:"iss"`
-	Sub   string   `json:"sub"`
-	Aud   Audience `json:"aud"`
-	Iat   int64    `json:"iat"`
-	Exp   int64    `json:"exp"`
-	Nonce string   `json:"nonce,omitempty"`
-	Scope string   `json:"scope,omitempty"`
+	Iss      string   `json:"iss"`
+	Sub      string   `json:"sub"`
+	Aud      Audience `json:"aud"`
+	Iat      int64    `json:"iat"`
+	Exp      int64    `json:"exp"`
+	Nonce    string   `json:"nonce,omitempty"`
+	Scope    string   `json:"scope,omitempty"`
+	AuthTime int64    `json:"auth_time,omitempty"`
 }
 
 type Token struct {

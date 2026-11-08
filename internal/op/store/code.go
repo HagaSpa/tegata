@@ -16,6 +16,7 @@ type Code struct {
 	Nonce         string
 	Sub           string
 	ExpiresAt     time.Time
+	AuthTime      time.Time
 }
 
 type Codes struct {
@@ -38,6 +39,7 @@ func (s *Codes) Issue(
 	codeChallenge string,
 	nonce string,
 	sub string,
+	authTime time.Time,
 ) string {
 	key := generateRandomString()
 	expiresAt := s.now().Add(5 * time.Minute)
@@ -49,6 +51,7 @@ func (s *Codes) Issue(
 		Nonce:         nonce,
 		Sub:           sub,
 		ExpiresAt:     expiresAt,
+		AuthTime:      authTime,
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()

@@ -24,7 +24,7 @@ func advance(s *Codes, d time.Duration) {
 
 func mustIssue(t *testing.T, s *Codes, sub string) string {
 	t.Helper()
-	key := s.Issue("client-1", "http://rp/cb", "openid", "challenge-1", "nonce-1", sub)
+	key := s.Issue("client-1", "http://rp/cb", "openid", "challenge-1", "nonce-1", sub, s.now())
 	return key
 }
 
@@ -45,6 +45,7 @@ func TestCodes(t *testing.T) {
 			Nonce:         "nonce-1",
 			Sub:           "u-0001",
 			ExpiresAt:     testBase.Add(5 * time.Minute),
+			AuthTime:      s.now(),
 		}
 		if *got != want {
 			t.Errorf("Consume() = %+v, want %+v", *got, want)

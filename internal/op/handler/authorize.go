@@ -14,25 +14,10 @@ type RedirectURIValidator interface {
 	ValidateRedirectURI(clientID string, uri string) bool
 }
 
-type UserAuthenticator interface {
-	Authenticate(username string, password string) (string, error)
-}
-
 type AuthorizeRequestOperator interface {
 	Save(req *store.AuthorizeRequest) string
 	Find(key string) (*store.AuthorizeRequest, error)
 	FindAndDelete(key string) (*store.AuthorizeRequest, error)
-}
-
-type CodeIssuer interface {
-	Issue(
-		clientID string,
-		redirectURI string,
-		scope string,
-		codeChallenge string,
-		nonce string,
-		sub string,
-	) string
 }
 
 type AuthorizeHandler struct {

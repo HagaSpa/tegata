@@ -4,7 +4,24 @@ import (
 	"html/template"
 	"net/http"
 	"net/url"
+	"time"
 )
+
+type UserAuthenticator interface {
+	Authenticate(username string, password string) (string, error)
+}
+
+type CodeIssuer interface {
+	Issue(
+		clientID string,
+		redirectURI string,
+		scope string,
+		codeChallenge string,
+		nonce string,
+		sub string,
+		authTime time.Time,
+	) string
+}
 
 type LoginHandler struct {
 	clients RedirectURIValidator
@@ -59,6 +76,8 @@ func (h *LoginHandler) Post(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	now := time.Now()
+
 	action := r.PostFormValue("action")
 	if action != "deny" && action != "approve" {
 		http.Error(w, "invalid action result", http.StatusBadRequest)
@@ -75,7 +94,7 @@ func (h *LoginHandler) Post(w http.ResponseWriter, r *http.Request) {
 	case "deny":
 		redirectAuthorizationError(w, r, req, errAccessDenied, "the user denied the request")
 	case "approve":
-		code := h.code.Issue(req.ClientID, req.RedirectURI, req.Scope, req.CodeChallenge, req.Nonce, sub)
+		code := h.code.Issue(req.ClientID, req.RedirectURI, req.Scope, req.CodeChallenge, req.Nonce, sub, now)
 		values := url.Values{}
 		values.Set("code", code)
 		if req.State != "" {

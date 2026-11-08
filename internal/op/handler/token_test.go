@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/HagaSpa/tegata/internal/op/keys"
 	"github.com/HagaSpa/tegata/internal/op/registry"
@@ -21,6 +22,8 @@ const (
 	testVerifier = "verifier-1"
 	testNonce    = "nonce-1"
 )
+
+var testAuthTime = time.Unix(1700000000, 0)
 
 func newTokenHandler(t *testing.T) (*TokenHandler, *store.Codes) {
 	t.Helper()
@@ -41,7 +44,7 @@ func challengeOf(verifier string) string {
 
 func issueCode(t *testing.T, codes *store.Codes, scope, verifier, nonce string) string {
 	t.Helper()
-	code := codes.Issue("tegata-sample", "http://localhost:9999/callback", scope, challengeOf(verifier), nonce, "u-0001")
+	code := codes.Issue("tegata-sample", "http://localhost:9999/callback", scope, challengeOf(verifier), nonce, "u-0001", testAuthTime)
 	return code
 }
 
@@ -170,7 +173,11 @@ func TestTokenHandler_Post(t *testing.T) {
 
 			idToken, _ := body["id_token"].(string)
 			id := decodePayload(t, idToken)
-			if id["iss"] != testIssuer || id["sub"] != "u-0001" || id["aud"] != "tegata-sample" || id["nonce"] != testNonce {
+			if id["iss"] != testIssuer ||
+				id["sub"] != "u-0001" ||
+				id["aud"] != "tegata-sample" ||
+				id["nonce"] != testNonce ||
+				id["auth_time"] != float64(testAuthTime.Unix()) {
 				t.Errorf("id_token claims = %v", id)
 			}
 			if _, ok := id["scope"]; ok {
@@ -184,6 +191,9 @@ func TestTokenHandler_Post(t *testing.T) {
 			}
 			if _, ok := at["nonce"]; ok {
 				t.Errorf("access_token must not carry nonce: %v", at)
+			}
+			if _, ok := at["auth_time"]; ok {
+				t.Errorf("access_token must not carry auth_time: %v", at)
 			}
 		})
 	}
@@ -234,7 +244,7 @@ func TestTokenHandler_Post_WithoutPKCE(t *testing.T) {
 	h, codes := newTokenHandler(t)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			code := codes.Issue("tegata-sample", "http://localhost:9999/callback", "openid", "", testNonce, "u-0001")
+			code := codes.Issue("tegata-sample", "http://localhost:9999/callback", "openid", "", testNonce, "u-0001", h.now())
 			f := validTokenForm(code)
 			if tt.editForm != nil {
 				tt.editForm(f)

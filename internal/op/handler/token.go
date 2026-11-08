@@ -131,12 +131,13 @@ func (h *TokenHandler) authorizationCode(
 
 	now := h.now()
 	idToken, err := h.signer.Sign(&jwt.Claims{
-		Iss:   h.issuer,
-		Sub:   code.Sub,
-		Aud:   jwt.Audience{clientID},
-		Iat:   now.Unix(),
-		Exp:   now.Add(tokenTTL).Unix(),
-		Nonce: code.Nonce,
+		Iss:      h.issuer,
+		Sub:      code.Sub,
+		Aud:      jwt.Audience{clientID},
+		Iat:      now.Unix(),
+		Exp:      now.Add(tokenTTL).Unix(),
+		Nonce:    code.Nonce,
+		AuthTime: code.AuthTime.Unix(),
 	})
 	if err != nil {
 		writeTokenError(w, http.StatusInternalServerError, errServerError, "failed to sign id_token")
