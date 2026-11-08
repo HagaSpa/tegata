@@ -100,7 +100,7 @@ func (h *LoginHandler) Post(w http.ResponseWriter, r *http.Request) {
 
 	now := time.Now()
 	key := h.session.Save(sub, now)
-	http.SetCookie(w, &http.Cookie{Name: "session_id", Value: key, MaxAge: 300, HttpOnly: true, Path: "/"})
+	http.SetCookie(w, &http.Cookie{Name: "session_id", Value: key, MaxAge: int(store.SessionTTL.Seconds()), HttpOnly: true, Path: "/"})
 
 	switch action {
 	case "deny":

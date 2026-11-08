@@ -8,19 +8,26 @@ import (
 
 var ErrInvalidSession = errors.New("invalid session")
 
+const (
+	SessionTTL = 10 * time.Hour
+)
+
 type Session struct {
-	Sub      string
-	AuthTime time.Time
+	Sub       string
+	AuthTime  time.Time
+	ExpiresAt time.Time
 }
 
 type Sessions struct {
-	mu sync.Mutex
-	ss map[string]*Session
+	mu  sync.Mutex
+	ss  map[string]*Session
+	now func() time.Time
 }
 
 func NewSessions() *Sessions {
 	return &Sessions{
-		ss: make(map[string]*Session),
+		ss:  make(map[string]*Session),
+		now: time.Now,
 	}
 }
 
@@ -30,8 +37,9 @@ func (s *Sessions) Save(
 ) string {
 	key := generateRandomString()
 	session := &Session{
-		Sub:      sub,
-		AuthTime: authTime,
+		Sub:       sub,
+		AuthTime:  authTime,
+		ExpiresAt: authTime.Add(SessionTTL),
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -46,6 +54,9 @@ func (s *Sessions) Get(
 	defer s.mu.Unlock()
 	session := s.ss[key]
 	if session == nil {
+		return nil, ErrInvalidSession
+	}
+	if session.ExpiresAt.Before(s.now()) {
 		return nil, ErrInvalidSession
 	}
 	return session, nil
