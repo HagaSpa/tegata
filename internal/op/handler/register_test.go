@@ -177,8 +177,9 @@ func TestRegisterHandler_PostThenLogin(t *testing.T) {
 	}
 	reqs := store.NewAuthorizeRequests()
 	codes := store.NewCodes()
+	ss := store.NewSessions()
 	rh := NewRegisterHandler(reqs, u)
-	lh := NewLoginHandler(registry.NewClients(), u, codes, reqs)
+	lh := NewLoginHandler(registry.NewClients(), u, codes, reqs, ss)
 
 	id := idFromBody(t, getRegister(rh, saveRequest(t, reqs, nil)).Body.String())
 	page := postRegister(rh, registerForm(id))

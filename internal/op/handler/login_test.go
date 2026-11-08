@@ -26,7 +26,8 @@ func newLoginHandler(t *testing.T) (*LoginHandler, *store.AuthorizeRequests, *st
 	}
 	co := store.NewCodes()
 	ar := store.NewAuthorizeRequests()
-	h := NewLoginHandler(cl, u, co, ar)
+	ss := store.NewSessions()
+	h := NewLoginHandler(cl, u, co, ar, ss)
 	return h, ar, co
 }
 
@@ -36,6 +37,13 @@ func postLogin(h *LoginHandler, f url.Values) *httptest.ResponseRecorder {
 	rec := httptest.NewRecorder()
 	h.Post(rec, req)
 	return rec
+}
+
+func assertNoCookie(t *testing.T, rec *httptest.ResponseRecorder) {
+	t.Helper()
+	if cookies := rec.Result().Cookies(); len(cookies) != 0 {
+		t.Errorf("a failed login must not set a cookie: %v", cookies)
+	}
 }
 
 func TestLoginHandler_Post(t *testing.T) {
@@ -78,9 +86,25 @@ func TestLoginHandler_Post(t *testing.T) {
 				if got := idFromBody(t, body); got != id {
 					t.Errorf("re-rendered id = %q, want %q", got, id)
 				}
+				assertNoCookie(t, rec)
 			case http.StatusBadRequest:
 				assertBadRequest(t, rec)
+				assertNoCookie(t, rec)
 			case http.StatusFound:
+				cookies := rec.Result().Cookies()
+				if len(cookies) != 1 || cookies[0].Name != "session_id" {
+					t.Fatalf("cookies = %v, want only session_id", cookies)
+				}
+				if !cookies[0].HttpOnly {
+					t.Errorf("session_id must be HttpOnly: %v", cookies[0])
+				}
+				s, err := h.session.Get(cookies[0].Value)
+				if err != nil {
+					t.Fatalf("Get(%q) failed: %v", cookies[0].Value, err)
+				}
+				if s.Sub != "u-0001" || s.AuthTime.IsZero() {
+					t.Errorf("session = %+v, want sub u-0001 and a login time", *s)
+				}
 				lq := redirectQuery(t, rec)
 				if got := lq.Get("error"); got != tt.wantError {
 					t.Errorf("error = %q, want %q", got, tt.wantError)

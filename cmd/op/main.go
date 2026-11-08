@@ -43,11 +43,12 @@ func main() {
 	co := store.NewCodes()
 	ar := store.NewAuthorizeRequests()
 	ts := store.NewRefreshTokens()
+	ss := store.NewSessions()
 
 	jwksHandler := handler.NewJWKHandler(km)
 	metadataHandler := handler.NewMetadataHandler(issuer)
 	authHandler := handler.NewAuthorizeHandler(cl, ar)
-	loginHandler := handler.NewLoginHandler(cl, u, co, ar)
+	loginHandler := handler.NewLoginHandler(cl, u, co, ar, ss)
 	tokenHandler := handler.NewTokenHandler(cl, ts, co, km, r, issuer)
 	useinfoHandler := handler.NewUserInfofHandler(km, u, issuer)
 	revokeHandler := handler.NewRevokeHandler(cl, ts)

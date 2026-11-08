@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/HagaSpa/tegata/internal/op/store"
 )
 
 type UserAuthenticator interface {
@@ -23,12 +25,18 @@ type CodeIssuer interface {
 	) string
 }
 
+type SessionOperator interface {
+	Save(sub string, authTime time.Time) string
+	Get(key string) (*store.Session, error)
+}
+
 type LoginHandler struct {
 	clients RedirectURIValidator
 	user    UserAuthenticator
 	code    CodeIssuer
 	file    *template.Template
 	authReq AuthorizeRequestOperator
+	session SessionOperator
 }
 
 func NewLoginHandler(
@@ -36,6 +44,7 @@ func NewLoginHandler(
 	user UserAuthenticator,
 	code CodeIssuer,
 	authReq AuthorizeRequestOperator,
+	session SessionOperator,
 ) *LoginHandler {
 	f := template.Must(template.ParseFS(htmlFS, "index.html"))
 	return &LoginHandler{
@@ -44,6 +53,7 @@ func NewLoginHandler(
 		code:    code,
 		file:    f,
 		authReq: authReq,
+		session: session,
 	}
 }
 
@@ -76,8 +86,6 @@ func (h *LoginHandler) Post(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	now := time.Now()
-
 	action := r.PostFormValue("action")
 	if action != "deny" && action != "approve" {
 		http.Error(w, "invalid action result", http.StatusBadRequest)
@@ -89,6 +97,10 @@ func (h *LoginHandler) Post(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to get authorize request", http.StatusBadRequest)
 		return
 	}
+
+	now := time.Now()
+	key := h.session.Save(sub, now)
+	http.SetCookie(w, &http.Cookie{Name: "session_id", Value: key, MaxAge: 300, HttpOnly: true, Path: "/"})
 
 	switch action {
 	case "deny":
