@@ -98,6 +98,9 @@ func TestLoginHandler_Post(t *testing.T) {
 				if !cookies[0].HttpOnly {
 					t.Errorf("session_id must be HttpOnly: %v", cookies[0])
 				}
+				if cookies[0].MaxAge != int(store.SessionTTL.Seconds()) {
+					t.Errorf("session.MaxAge must be store.SessionTTL.Seconds(), session.MaxAge: %d", cookies[0].MaxAge)
+				}
 				s, err := h.session.Get(cookies[0].Value)
 				if err != nil {
 					t.Fatalf("Get(%q) failed: %v", cookies[0].Value, err)
