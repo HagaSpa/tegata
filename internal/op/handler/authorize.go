@@ -107,13 +107,7 @@ func (h *AuthorizeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			redirectAuthorizationError(w, r, req, errLoginRequired, "login required")
 			return
 		}
-		code := h.code.Issue(req.ClientID, req.RedirectURI, req.Scope, req.CodeChallenge, req.Nonce, s.Sub, s.AuthTime)
-		values := url.Values{}
-		values.Set("code", code)
-		if req.State != "" {
-			values.Set("state", req.State)
-		}
-		redirectToClient(w, r, req.RedirectURI, values)
+		redirectWithCode(w, r, h.code, req, s.Sub, s.AuthTime)
 		return
 	}
 

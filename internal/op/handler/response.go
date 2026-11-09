@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/HagaSpa/tegata/internal/op/store"
 )
@@ -59,6 +60,23 @@ func redirectToClient(
 	}
 	u.RawQuery = q.Encode()
 	http.Redirect(w, r, u.String(), http.StatusFound)
+}
+
+func redirectWithCode(
+	w http.ResponseWriter,
+	r *http.Request,
+	c CodeIssuer,
+	req *store.AuthorizeRequest,
+	sub string,
+	authTime time.Time,
+) {
+	code := c.Issue(req.ClientID, req.RedirectURI, req.Scope, req.CodeChallenge, req.Nonce, sub, authTime)
+	values := url.Values{}
+	values.Set("code", code)
+	if req.State != "" {
+		values.Set("state", req.State)
+	}
+	redirectToClient(w, r, req.RedirectURI, values)
 }
 
 type tokenErrorResponse struct {

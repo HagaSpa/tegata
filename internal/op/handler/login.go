@@ -3,7 +3,6 @@ package handler
 import (
 	"html/template"
 	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/HagaSpa/tegata/internal/op/store"
@@ -106,12 +105,6 @@ func (h *LoginHandler) Post(w http.ResponseWriter, r *http.Request) {
 	case "deny":
 		redirectAuthorizationError(w, r, req, errAccessDenied, "the user denied the request")
 	case "approve":
-		code := h.code.Issue(req.ClientID, req.RedirectURI, req.Scope, req.CodeChallenge, req.Nonce, sub, now)
-		values := url.Values{}
-		values.Set("code", code)
-		if req.State != "" {
-			values.Set("state", req.State)
-		}
-		redirectToClient(w, r, req.RedirectURI, values)
+		redirectWithCode(w, r, h.code, req, sub, now)
 	}
 }
