@@ -58,15 +58,8 @@ func (h *AuthorizeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid client_id or redirect_uri", http.StatusBadRequest)
 		return
 	}
-	if r.Form.Get("request") != "" {
-		redirectAuthorizationError(w, r, req, errNotSupportedRequest, "request not supported")
-		return
-	}
-	if r.Form.Get("request_uri") != "" {
-		redirectAuthorizationError(w, r, req, errNotSupportedRequestURI, "request_uri not supported")
-		return
-	}
-	if authReqErr := validateAuthorizeRequest(req); authReqErr != nil {
+
+	if authReqErr := validateAuthorizeRequest(r.Form); authReqErr != nil {
 		redirectAuthorizationError(w, r, req, authReqErr.code, authReqErr.desc)
 		return
 	}
@@ -136,20 +129,32 @@ type authorizeError struct {
 	desc string
 }
 
-func validateAuthorizeRequest(r *store.AuthorizeRequest) *authorizeError {
-	if r.ResponseType != "code" {
+func validateAuthorizeRequest(v url.Values) *authorizeError {
+	if v.Get("request") != "" {
+		return &authorizeError{
+			code: errNotSupportedRequest,
+			desc: "request not supported",
+		}
+	}
+	if v.Get("request_uri") != "" {
+		return &authorizeError{
+			code: errNotSupportedRequestURI,
+			desc: "request_uri not supported",
+		}
+	}
+	if v.Get("response_type") != "code" {
 		return &authorizeError{
 			code: errUnsupportedResponseType,
 			desc: "response_type needs code",
 		}
 	}
-	if !slices.Contains(strings.Fields(r.Scope), "openid") {
+	if !slices.Contains(strings.Fields(v.Get("scope")), "openid") {
 		return &authorizeError{
 			code: errInvalidScope,
 			desc: "scope must contain openid",
 		}
 	}
-	if r.CodeChallenge != "" && r.CodeChallengeMethod != "S256" {
+	if v.Get("code_challenge") != "" && v.Get("code_challenge_method") != "S256" {
 		return &authorizeError{
 			code: errInvalidRequest,
 			desc: "code_challenge_method needs S256",
