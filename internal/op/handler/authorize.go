@@ -65,29 +65,20 @@ func (h *AuthorizeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var s *store.Session
-	if c, err := r.Cookie("session_id"); err == nil {
-		s, _ = h.session.Get(c.Value)
-	}
-	loggedIn := s != nil
-	if loggedIn && opt.hasMaxAge && time.Since(s.AuthTime) > time.Duration(opt.maxAge)*time.Second {
-		loggedIn = false
-	}
+	s := h.authenticatedSession(r, opt)
 
-	if opt.promptNone {
-		if !loggedIn {
-			redirectAuthorizationError(w, r, req, errLoginRequired, "login required")
-			return
-		}
+	switch {
+	case opt.promptNone && s == nil:
+		redirectAuthorizationError(w, r, req, errLoginRequired, "login required")
+	case opt.promptNone:
 		redirectWithCode(w, r, h.code, req, s.Sub, s.AuthTime)
-		return
+	default:
+		id := h.authReq.Save(req)
+		param := templateParam{
+			ID: id,
+		}
+		render(h.file, w, &param)
 	}
-
-	id := h.authReq.Save(req)
-	param := templateParam{
-		ID: id,
-	}
-	render(h.file, w, &param)
 }
 
 func parseAuthorizeRequest(v url.Values) *store.AuthorizeRequest {
@@ -175,4 +166,18 @@ func parseLoginOptions(v url.Values) (loginOptions, *authorizeError) {
 	}
 
 	return lo, nil
+}
+
+func (h *AuthorizeHandler) authenticatedSession(
+	r *http.Request,
+	opt loginOptions,
+) *store.Session {
+	var s *store.Session
+	if c, err := r.Cookie("session_id"); err == nil {
+		s, _ = h.session.Get(c.Value)
+	}
+	if s != nil && opt.hasMaxAge && time.Since(s.AuthTime) > time.Duration(opt.maxAge)*time.Second {
+		return nil
+	}
+	return s
 }
