@@ -66,8 +66,8 @@ func (h *AuthorizeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		redirectAuthorizationError(w, r, req, errNotSupportedRequestURI, "request_uri not supported")
 		return
 	}
-	if code, desc := validateAuthorizeRequest(req); code != "" {
-		redirectAuthorizationError(w, r, req, code, desc)
+	if authReqErr := validateAuthorizeRequest(req); authReqErr != nil {
+		redirectAuthorizationError(w, r, req, authReqErr.code, authReqErr.desc)
 		return
 	}
 
@@ -131,15 +131,29 @@ func parseAuthorizeRequest(v url.Values) *store.AuthorizeRequest {
 	}
 }
 
-func validateAuthorizeRequest(r *store.AuthorizeRequest) (errorCode, string) {
+type authorizeError struct {
+	code errorCode
+	desc string
+}
+
+func validateAuthorizeRequest(r *store.AuthorizeRequest) *authorizeError {
 	if r.ResponseType != "code" {
-		return errUnsupportedResponseType, "response_type needs code"
+		return &authorizeError{
+			code: errUnsupportedResponseType,
+			desc: "response_type needs code",
+		}
 	}
 	if !slices.Contains(strings.Fields(r.Scope), "openid") {
-		return errInvalidScope, "scope must contain openid"
+		return &authorizeError{
+			code: errInvalidScope,
+			desc: "scope must contain openid",
+		}
 	}
 	if r.CodeChallenge != "" && r.CodeChallengeMethod != "S256" {
-		return errInvalidRequest, "code_challenge_method needs S256"
+		return &authorizeError{
+			code: errInvalidRequest,
+			desc: "code_challenge_method needs S256",
+		}
 	}
-	return "", ""
+	return nil
 }
