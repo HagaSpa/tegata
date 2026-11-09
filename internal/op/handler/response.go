@@ -21,6 +21,7 @@ const (
 	errUnsupportedGrantType    errorCode = "unsupported_grant_type"
 	errNotSupportedRequest     errorCode = "request_not_supported"
 	errNotSupportedRequestURI  errorCode = "request_uri_not_supported"
+	errLoginRequired           errorCode = "login_required"
 )
 
 func redirectAuthorizationError(

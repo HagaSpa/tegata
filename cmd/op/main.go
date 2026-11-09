@@ -47,7 +47,7 @@ func main() {
 
 	jwksHandler := handler.NewJWKHandler(km)
 	metadataHandler := handler.NewMetadataHandler(issuer)
-	authHandler := handler.NewAuthorizeHandler(cl, ar)
+	authHandler := handler.NewAuthorizeHandler(cl, ar, ss, co)
 	loginHandler := handler.NewLoginHandler(cl, u, co, ar, ss)
 	tokenHandler := handler.NewTokenHandler(cl, ts, co, km, r, issuer)
 	useinfoHandler := handler.NewUserInfofHandler(km, u, issuer)

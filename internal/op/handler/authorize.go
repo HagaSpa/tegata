@@ -5,7 +5,9 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/HagaSpa/tegata/internal/op/store"
 )
@@ -24,17 +26,23 @@ type AuthorizeHandler struct {
 	clients RedirectURIValidator
 	file    *template.Template
 	authReq AuthorizeRequestOperator
+	session SessionOperator
+	code    CodeIssuer
 }
 
 func NewAuthorizeHandler(
 	clients RedirectURIValidator,
 	authReq AuthorizeRequestOperator,
+	session SessionOperator,
+	code CodeIssuer,
 ) *AuthorizeHandler {
 	f := template.Must(template.ParseFS(htmlFS, "index.html"))
 	return &AuthorizeHandler{
 		clients: clients,
 		file:    f,
 		authReq: authReq,
+		code:    code,
+		session: session,
 	}
 }
 
@@ -62,6 +70,53 @@ func (h *AuthorizeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		redirectAuthorizationError(w, r, req, code, desc)
 		return
 	}
+
+	hasMaxAge := false
+	maxAge := 0
+	if r.Form.Get("max_age") != "" {
+		n, err := strconv.Atoi(r.Form.Get("max_age"))
+		if err != nil || n < 0 {
+			redirectAuthorizationError(w, r, req, errInvalidRequest, "max_age must be a non-negative integer")
+			return
+		}
+		maxAge = n
+		hasMaxAge = true
+	}
+
+	promptNone := false
+	prompt := strings.Fields(r.Form.Get("prompt"))
+	if slices.Contains(prompt, "none") {
+		if len(prompt) != 1 {
+			redirectAuthorizationError(w, r, req, errInvalidRequest, "prompt=none must not be combined with other values")
+			return
+		}
+		promptNone = true
+	}
+
+	var s *store.Session
+	if c, err := r.Cookie("session_id"); err == nil {
+		s, _ = h.session.Get(c.Value)
+	}
+	loggedIn := s != nil
+	if loggedIn && hasMaxAge && time.Since(s.AuthTime) > time.Duration(maxAge)*time.Second {
+		loggedIn = false
+	}
+
+	if promptNone {
+		if !loggedIn {
+			redirectAuthorizationError(w, r, req, errLoginRequired, "login required")
+			return
+		}
+		code := h.code.Issue(req.ClientID, req.RedirectURI, req.Scope, req.CodeChallenge, req.Nonce, s.Sub, s.AuthTime)
+		values := url.Values{}
+		values.Set("code", code)
+		if req.State != "" {
+			values.Set("state", req.State)
+		}
+		redirectToClient(w, r, req.RedirectURI, values)
+		return
+	}
+
 	id := h.authReq.Save(req)
 	param := templateParam{
 		ID: id,
