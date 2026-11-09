@@ -59,31 +59,10 @@ func (h *AuthorizeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if authReqErr := validateAuthorizeRequest(r.Form); authReqErr != nil {
+	opt, authReqErr := validateAuthorizeRequest(r.Form)
+	if authReqErr != nil {
 		redirectAuthorizationError(w, r, req, authReqErr.code, authReqErr.desc)
 		return
-	}
-
-	hasMaxAge := false
-	maxAge := 0
-	if r.Form.Get("max_age") != "" {
-		n, err := strconv.Atoi(r.Form.Get("max_age"))
-		if err != nil || n < 0 {
-			redirectAuthorizationError(w, r, req, errInvalidRequest, "max_age must be a non-negative integer")
-			return
-		}
-		maxAge = n
-		hasMaxAge = true
-	}
-
-	promptNone := false
-	prompt := strings.Fields(r.Form.Get("prompt"))
-	if slices.Contains(prompt, "none") {
-		if len(prompt) != 1 {
-			redirectAuthorizationError(w, r, req, errInvalidRequest, "prompt=none must not be combined with other values")
-			return
-		}
-		promptNone = true
 	}
 
 	var s *store.Session
@@ -91,11 +70,11 @@ func (h *AuthorizeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s, _ = h.session.Get(c.Value)
 	}
 	loggedIn := s != nil
-	if loggedIn && hasMaxAge && time.Since(s.AuthTime) > time.Duration(maxAge)*time.Second {
+	if loggedIn && opt.hasMaxAge && time.Since(s.AuthTime) > time.Duration(opt.maxAge)*time.Second {
 		loggedIn = false
 	}
 
-	if promptNone {
+	if opt.promptNone {
 		if !loggedIn {
 			redirectAuthorizationError(w, r, req, errLoginRequired, "login required")
 			return
@@ -129,36 +108,71 @@ type authorizeError struct {
 	desc string
 }
 
-func validateAuthorizeRequest(v url.Values) *authorizeError {
+func validateAuthorizeRequest(v url.Values) (loginOptions, *authorizeError) {
 	if v.Get("request") != "" {
-		return &authorizeError{
+		return loginOptions{}, &authorizeError{
 			code: errNotSupportedRequest,
 			desc: "request not supported",
 		}
 	}
 	if v.Get("request_uri") != "" {
-		return &authorizeError{
+		return loginOptions{}, &authorizeError{
 			code: errNotSupportedRequestURI,
 			desc: "request_uri not supported",
 		}
 	}
 	if v.Get("response_type") != "code" {
-		return &authorizeError{
+		return loginOptions{}, &authorizeError{
 			code: errUnsupportedResponseType,
 			desc: "response_type needs code",
 		}
 	}
 	if !slices.Contains(strings.Fields(v.Get("scope")), "openid") {
-		return &authorizeError{
+		return loginOptions{}, &authorizeError{
 			code: errInvalidScope,
 			desc: "scope must contain openid",
 		}
 	}
 	if v.Get("code_challenge") != "" && v.Get("code_challenge_method") != "S256" {
-		return &authorizeError{
+		return loginOptions{}, &authorizeError{
 			code: errInvalidRequest,
 			desc: "code_challenge_method needs S256",
 		}
 	}
-	return nil
+	return parseLoginOptions(v)
+}
+
+type loginOptions struct {
+	maxAge     int
+	hasMaxAge  bool
+	promptNone bool
+}
+
+func parseLoginOptions(v url.Values) (loginOptions, *authorizeError) {
+	lo := loginOptions{}
+
+	if v.Get("max_age") != "" {
+		n, err := strconv.Atoi(v.Get("max_age"))
+		if err != nil || n < 0 {
+			return loginOptions{}, &authorizeError{
+				code: errInvalidRequest,
+				desc: "max_age must be a non-negative integer",
+			}
+		}
+		lo.maxAge = n
+		lo.hasMaxAge = true
+	}
+
+	prompt := strings.Fields(v.Get("prompt"))
+	if slices.Contains(prompt, "none") {
+		if len(prompt) != 1 {
+			return loginOptions{}, &authorizeError{
+				code: errInvalidRequest,
+				desc: "prompt=none must not be combined with other values",
+			}
+		}
+		lo.promptNone = true
+	}
+
+	return lo, nil
 }
