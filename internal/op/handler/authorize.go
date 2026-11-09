@@ -172,11 +172,15 @@ func (h *AuthorizeHandler) authenticatedSession(
 	r *http.Request,
 	opt loginOptions,
 ) *store.Session {
-	var s *store.Session
-	if c, err := r.Cookie("session_id"); err == nil {
-		s, _ = h.session.Get(c.Value)
+	c, err := r.Cookie("session_id")
+	if err != nil {
+		return nil
 	}
-	if s != nil && opt.hasMaxAge && time.Since(s.AuthTime) > time.Duration(opt.maxAge)*time.Second {
+	s, err := h.session.Get(c.Value)
+	if err != nil {
+		return nil
+	}
+	if opt.hasMaxAge && time.Since(s.AuthTime) > time.Duration(opt.maxAge)*time.Second {
 		return nil
 	}
 	return s
