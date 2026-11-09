@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/HagaSpa/tegata/internal/op/registry"
 	"github.com/HagaSpa/tegata/internal/op/store"
@@ -16,12 +17,14 @@ const testState = "state-1"
 
 var hiddenIDPattern = regexp.MustCompile(`name="id" value="([A-Za-z0-9_-]{43})"`)
 
-func newAuthorizeHandler(t *testing.T) (*AuthorizeHandler, *store.AuthorizeRequests) {
+func newAuthorizeHandler(t *testing.T) (*AuthorizeHandler, *store.AuthorizeRequests, *store.Sessions, *store.Codes) {
 	t.Helper()
 	cl := registry.NewClients()
 	ar := store.NewAuthorizeRequests()
-	h := NewAuthorizeHandler(cl, ar)
-	return h, ar
+	ss := store.NewSessions()
+	co := store.NewCodes()
+	h := NewAuthorizeHandler(cl, ar, ss, co)
+	return h, ar, ss, co
 }
 
 func validAuthorizeQuery() url.Values {
@@ -56,16 +59,22 @@ func loginForm(id string) url.Values {
 	return f
 }
 
-func getAuthorize(h *AuthorizeHandler, q url.Values) *httptest.ResponseRecorder {
+func getAuthorize(h *AuthorizeHandler, q url.Values, cookies ...*http.Cookie) *httptest.ResponseRecorder {
 	req := httptest.NewRequest(http.MethodGet, "/authorize?"+q.Encode(), nil)
+	for _, c := range cookies {
+		req.AddCookie(c)
+	}
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	return rec
 }
 
-func postAuthorize(h *AuthorizeHandler, f url.Values) *httptest.ResponseRecorder {
+func postAuthorize(h *AuthorizeHandler, f url.Values, cookies ...*http.Cookie) *httptest.ResponseRecorder {
 	req := httptest.NewRequest(http.MethodPost, "/authorize", strings.NewReader(f.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	for _, c := range cookies {
+		req.AddCookie(c)
+	}
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	return rec
@@ -109,7 +118,7 @@ func assertBadRequest(t *testing.T, rec *httptest.ResponseRecorder) {
 
 var authorizeSenders = []struct {
 	method string
-	send   func(h *AuthorizeHandler, v url.Values) *httptest.ResponseRecorder
+	send   func(h *AuthorizeHandler, v url.Values, cookies ...*http.Cookie) *httptest.ResponseRecorder
 }{
 	{http.MethodGet, getAuthorize},
 	{http.MethodPost, postAuthorize},
@@ -133,9 +142,15 @@ func TestAuthorizeHandler(t *testing.T) {
 		{"state なしで失敗", func(q url.Values) { q.Del("state"); q.Set("response_type", "token") }, http.StatusFound, "unsupported_response_type"},
 		{"request をつけると失敗", func(q url.Values) { q.Set("request", "aaa") }, http.StatusFound, "request_not_supported"},
 		{"request_uri をつけると失敗", func(q url.Values) { q.Set("request_uri", "aaa") }, http.StatusFound, "request_uri_not_supported"},
+		{"prompt=none でログインしていない", func(q url.Values) { q.Set("prompt", "none") }, http.StatusFound, "login_required"},
+		{"prompt=none と login の併用", func(q url.Values) { q.Set("prompt", "none login") }, http.StatusFound, "invalid_request"},
+		{"prompt=login はログイン画面", func(q url.Values) { q.Set("prompt", "login") }, http.StatusOK, ""},
+		{"max_age=0 はログイン画面", func(q url.Values) { q.Set("max_age", "0") }, http.StatusOK, ""},
+		{"max_age が数値でない", func(q url.Values) { q.Set("max_age", "abc") }, http.StatusFound, "invalid_request"},
+		{"max_age が負", func(q url.Values) { q.Set("max_age", "-1") }, http.StatusFound, "invalid_request"},
 	}
 
-	h, _ := newAuthorizeHandler(t)
+	h, _, _, _ := newAuthorizeHandler(t)
 	for _, s := range authorizeSenders {
 		for _, tt := range tests {
 			t.Run(s.method+" "+tt.name, func(t *testing.T) {
@@ -188,7 +203,7 @@ func TestAuthorizeHandler(t *testing.T) {
 func TestAuthorizeHandler_SavesRequest(t *testing.T) {
 	for _, s := range authorizeSenders {
 		t.Run(s.method, func(t *testing.T) {
-			h, reqs := newAuthorizeHandler(t)
+			h, reqs, _, _ := newAuthorizeHandler(t)
 			q := validAuthorizeQuery()
 
 			rec := s.send(h, q)
@@ -209,11 +224,114 @@ func TestAuthorizeHandler_SavesRequest(t *testing.T) {
 	}
 }
 
+func TestAuthorizeHandler_Session(t *testing.T) {
+	tests := []struct {
+		name        string
+		withSession bool
+		cookieValue string
+		loginAgo    time.Duration
+		prompt      string
+		maxAge      string
+		wantStatus  int
+		wantError   string
+	}{
+		{"prompt=none でログイン済みなら code", true, "", time.Minute, "none", "", http.StatusFound, ""},
+		{"prompt=none で max_age 以内なら code", true, "", time.Minute, "none", "120", http.StatusFound, ""},
+		{"prompt=none で max_age を過ぎたら login_required", true, "", 3 * time.Minute, "none", "120", http.StatusFound, "login_required"},
+		{"prompt=none で max_age=0 は login_required", true, "", time.Minute, "none", "0", http.StatusFound, "login_required"},
+		{"prompt=none でセッションが期限切れなら login_required", true, "", store.SessionTTL + time.Minute, "none", "", http.StatusFound, "login_required"},
+		{"prompt=none で未知の cookie は login_required", false, "bogus", 0, "none", "", http.StatusFound, "login_required"},
+		{"prompt なしならログイン済みでもログイン画面", true, "", time.Minute, "", "", http.StatusOK, ""},
+		{"prompt なしで max_age を過ぎていればログイン画面", true, "", 3 * time.Minute, "", "120", http.StatusOK, ""},
+	}
+
+	for _, s := range authorizeSenders {
+		for _, tt := range tests {
+			t.Run(s.method+" "+tt.name, func(t *testing.T) {
+				h, _, ss, codes := newAuthorizeHandler(t)
+				authTime := time.Now().Add(-tt.loginAgo)
+				cookie := &http.Cookie{Name: "session_id", Value: tt.cookieValue}
+				if tt.withSession {
+					cookie.Value = ss.Save("u-0001", authTime)
+				}
+				q := validAuthorizeQuery()
+				if tt.prompt != "" {
+					q.Set("prompt", tt.prompt)
+				}
+				if tt.maxAge != "" {
+					q.Set("max_age", tt.maxAge)
+				}
+
+				rec := s.send(h, q, cookie)
+				if rec.Code != tt.wantStatus {
+					t.Fatalf("status = %d, want %d (body %q)", rec.Code, tt.wantStatus, rec.Body.String())
+				}
+				if tt.wantStatus == http.StatusOK {
+					idFromBody(t, rec.Body.String())
+					return
+				}
+
+				lq := redirectQuery(t, rec)
+				if got := lq.Get("error"); got != tt.wantError {
+					t.Fatalf("error = %q, want %q", got, tt.wantError)
+				}
+				if got := lq.Get("state"); got != testState {
+					t.Errorf("state = %q, want %q", got, testState)
+				}
+				if tt.wantError != "" {
+					if lq.Has("code") {
+						t.Errorf("an error response must not carry code: %v", lq)
+					}
+					return
+				}
+
+				got, err := codes.Consume(lq.Get("code"))
+				if err != nil {
+					t.Fatalf("Consume() failed: %v", err)
+				}
+				if got.ClientID != "tegata-sample" || got.RedirectURI != "http://localhost:9999/callback" ||
+					got.Scope != "openid" || got.Nonce != "n" || got.CodeChallenge != "x" ||
+					got.Sub != "u-0001" || !got.AuthTime.Equal(authTime) {
+					t.Errorf("code = %+v, want the request values, sub u-0001 and auth time %v", *got, authTime)
+				}
+			})
+		}
+	}
+}
+
+func TestAuthorizeHandler_PromptNoneAfterLogin(t *testing.T) {
+	lh, reqs, codes := newLoginHandler(t)
+	h := NewAuthorizeHandler(registry.NewClients(), reqs, lh.session, lh.code)
+
+	id := idFromBody(t, getAuthorize(h, validAuthorizeQuery()).Body.String())
+	login := postLogin(lh, loginForm(id))
+	redirectQuery(t, login)
+	cookies := login.Result().Cookies()
+	if len(cookies) != 1 {
+		t.Fatalf("cookies = %v, want only session_id", cookies)
+	}
+	session, err := lh.session.Get(cookies[0].Value)
+	if err != nil {
+		t.Fatalf("Get() failed: %v", err)
+	}
+
+	q := validAuthorizeQuery()
+	q.Set("prompt", "none")
+	lq := redirectQuery(t, getAuthorize(h, q, cookies[0]))
+	got, err := codes.Consume(lq.Get("code"))
+	if err != nil {
+		t.Fatalf("Consume() failed: %v (Location query %v)", err, lq)
+	}
+	if got.Sub != "u-0001" || !got.AuthTime.Equal(session.AuthTime) {
+		t.Errorf("code = %+v, want sub u-0001 and the login time %v", *got, session.AuthTime)
+	}
+}
+
 func TestAuthorizeHandler_ThenLogin(t *testing.T) {
 	for _, s := range authorizeSenders {
 		t.Run(s.method, func(t *testing.T) {
 			lh, reqs, _ := newLoginHandler(t)
-			h := NewAuthorizeHandler(registry.NewClients(), reqs)
+			h := NewAuthorizeHandler(registry.NewClients(), reqs, lh.session, lh.code)
 
 			page := s.send(h, validAuthorizeQuery())
 			if page.Code != http.StatusOK {
