@@ -140,7 +140,7 @@ type loginOptions struct {
 }
 
 func parseLoginOptions(v url.Values) (loginOptions, *authorizeError) {
-	lo := loginOptions{}
+	opt := loginOptions{}
 
 	if v.Get("max_age") != "" {
 		n, err := strconv.Atoi(v.Get("max_age"))
@@ -150,8 +150,8 @@ func parseLoginOptions(v url.Values) (loginOptions, *authorizeError) {
 				desc: "max_age must be a non-negative integer",
 			}
 		}
-		lo.maxAge = n
-		lo.hasMaxAge = true
+		opt.maxAge = n
+		opt.hasMaxAge = true
 	}
 
 	prompt := strings.Fields(v.Get("prompt"))
@@ -162,10 +162,10 @@ func parseLoginOptions(v url.Values) (loginOptions, *authorizeError) {
 				desc: "prompt=none must not be combined with other values",
 			}
 		}
-		lo.promptNone = true
+		opt.promptNone = true
 	}
 
-	return lo, nil
+	return opt, nil
 }
 
 func (h *AuthorizeHandler) authenticatedSession(
