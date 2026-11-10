@@ -27,6 +27,13 @@ func main() {
 		issuer = "http://localhost:8080"
 	}
 
+	certFile, certExists := os.LookupEnv("TLS_CERT_FILE")
+	keyFile, keyExists := os.LookupEnv("TLS_KEY_FILE")
+	if certExists != keyExists {
+		log.Fatal("TLS_CERT_FILE and TLS_KEY_FILE must be either set or unset.")
+	}
+	isTLS := certExists && keyExists
+
 	cl := registry.NewClients()
 	u, err := registry.NewUsers(
 		"username",
@@ -69,5 +76,9 @@ func main() {
 	mux.HandleFunc("POST /register", registerHandler.Post)
 
 	fmt.Println("Serving on :8080...")
+
+	if isTLS {
+		log.Fatal(http.ListenAndServeTLS(":8080", certFile, keyFile, mux))
+	}
 	log.Fatal(http.ListenAndServe(":8080", mux))
 }
