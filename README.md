@@ -2,12 +2,32 @@
 tegata is an OpenID Provider (OAuth 2.0 Authorization Server). Reinventing the wheel for learning purposes.
 https://openid-foundation-japan.github.io/rfc6749.ja.html
 
-| compose service | directory | role |
-|---|---|---|
-| `openid-provider` | `cmd/op`, `internal/op` | tegata itself. Issues authorization codes, ID tokens and access tokens |
-| `relying-party` | `tools/rp` | Sample client that signs in through `openid-provider` |
+| compose service | OAuth 2.0 role | directory | role |
+|---|---|---|---|
+| `openid-provider` | Authorization Server | `cmd/op`, `internal/op` | tegata itself. Issues authorization codes, ID tokens and access tokens |
+| `resource-server` | Resource Server | `cmd/rs`, `internal/rs` | Sample resource server. Serves `/notes` for access tokens issued by `openid-provider` |
+| `relying-party` | Client | `tools/rp` | Sample client that signs in through `openid-provider` |
 
 The main module uses only the Go standard library. `tools/rp` is a separate module because it depends on go-oidc for verification.
+
+## Endpoints
+
+OpenID Connect is built on top of OAuth 2.0. Some endpoints come from OAuth 2.0 as they are, some are OAuth 2.0 endpoints that OpenID Connect extends, and some exist only in OpenID Connect.
+
+| service | endpoint | spec | what it does |
+|---|---|---|---|
+| `openid-provider` | `GET /.well-known/openid-configuration` | OpenID Connect ([Discovery 1.0 §4](https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderConfig)) | Returns the provider metadata: the issuer, the endpoint URLs and the supported values |
+| `openid-provider` | `GET /.well-known/jwks.json` | OpenID Connect (`jwks_uri` in [Discovery 1.0 §3](https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderMetadata)). The format is a JWK Set ([RFC 7517 §5](https://www.rfc-editor.org/rfc/rfc7517#section-5)) | Returns the public keys for verifying ID tokens and access tokens |
+| `openid-provider` | `GET`, `POST /authorize` | OAuth 2.0 ([RFC 6749 §3.1](https://www.rfc-editor.org/rfc/rfc6749#section-3.1)), extended by OpenID Connect ([Core §3.1.2](https://openid.net/specs/openid-connect-core-1_0.html#AuthorizationEndpoint): the `openid` scope, `nonce`, `prompt`, `max_age`) | Validates the authorization request and shows the login page. With `prompt=none`, issues a code from the existing OP session instead |
+| `openid-provider` | `POST /login` | tegata only | Receives the login form, starts the OP session and redirects back to the client with a code |
+| `openid-provider` | `GET`, `POST /register` | tegata only | Shows the sign-up form and registers a user |
+| `openid-provider` | `POST /token` | OAuth 2.0 ([RFC 6749 §3.2](https://www.rfc-editor.org/rfc/rfc6749#section-3.2)), extended by OpenID Connect ([Core §3.1.3](https://openid.net/specs/openid-connect-core-1_0.html#TokenEndpoint): the ID token in the response) | Exchanges an authorization code or a refresh token for tokens |
+| `openid-provider` | `POST /revoke` | OAuth 2.0 ([RFC 7009 §2](https://www.rfc-editor.org/rfc/rfc7009#section-2)) | Revokes a refresh token |
+| `openid-provider` | `GET`, `POST /userinfo` | OpenID Connect ([Core §5.3](https://openid.net/specs/openid-connect-core-1_0.html#UserInfo)) | Returns claims about the user for an access token. In OAuth 2.0 terms, it is a protected resource hosted by the OP |
+| `openid-provider` | `GET /` | tegata only | Returns `Hello, World!` |
+| `resource-server` | `GET`, `POST /notes` | OAuth 2.0 (a protected resource. The access token is sent as in [RFC 6750 §2.1](https://www.rfc-editor.org/rfc/rfc6750#section-2.1)) | Reads notes with `notes.read` and writes notes with `notes.write` |
+| `relying-party` | `GET /callback` | OAuth 2.0 (the redirection endpoint, [RFC 6749 §3.1.2](https://www.rfc-editor.org/rfc/rfc6749#section-3.1.2)) | Receives the code, exchanges it for tokens, verifies the ID token, then calls `/userinfo` and `/notes` |
+| `relying-party` | `GET /`, `/notes`, `/expire`, `/logout` | tegata only (demo) | Starts the login, calls the resource server again, marks the access token as expired, and revokes the refresh token |
 
 ## Conformance testing
 
