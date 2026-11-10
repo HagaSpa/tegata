@@ -2,7 +2,7 @@
   "alias": "tegata",
   "description": "tegata local",
   "server": {
-    "discoveryUrl": "http://tegata.localhost:8080/.well-known/openid-configuration"
+    "discoveryUrl": "https://tegata.localhost:8080/.well-known/openid-configuration"
   },
   "client": {
     "client_id": "conformance",
@@ -18,7 +18,7 @@
   },
   "browser": [
     {
-      "match": "http://tegata.localhost:8080/authorize*prompt=none*",
+      "match": "https://tegata.localhost:8080/authorize*prompt=none*",
       "tasks": [
         {
           "task": "Expect redirect without login",
@@ -28,11 +28,11 @@
       ]
     },
     {
-      "match": "http://tegata.localhost:8080/authorize*",
+      "match": "https://tegata.localhost:8080/authorize*",
       "tasks": [
         {
           "task": "Login",
-          "match": "http://tegata.localhost:8080/authorize*",
+          "match": "https://tegata.localhost:8080/authorize*",
           "optional": true,
           "commands": [
             ["text", "name", "username", "username", "optional"],
@@ -52,11 +52,11 @@
     "oidcc-prompt-login": {
       "browser": [
         {
-          "match": "http://tegata.localhost:8080/authorize*",
+          "match": "https://tegata.localhost:8080/authorize*",
           "tasks": [
             {
               "task": "Login",
-              "match": "http://tegata.localhost:8080/authorize*",
+              "match": "https://tegata.localhost:8080/authorize*",
               "optional": true,
               "commands": [
                 ["wait", "xpath", "//*", 10, "Tegata OIDC Server", "update-image-placeholder-optional"],
@@ -77,11 +77,11 @@
     "oidcc-max-age-1": {
       "browser": [
         {
-          "match": "http://tegata.localhost:8080/authorize*",
+          "match": "https://tegata.localhost:8080/authorize*",
           "tasks": [
             {
               "task": "Login",
-              "match": "http://tegata.localhost:8080/authorize*",
+              "match": "https://tegata.localhost:8080/authorize*",
               "optional": true,
               "commands": [
                 ["wait", "xpath", "//*", 10, "Tegata OIDC Server", "update-image-placeholder-optional"],
@@ -102,11 +102,11 @@
     "oidcc-ensure-request-object-with-redirect-uri": {
       "browser": [
         {
-          "match": "http://tegata.localhost:8080/authorize*",
+          "match": "https://tegata.localhost:8080/authorize*",
           "tasks": [
             {
               "task": "Expect redirect uri mismatch error page",
-              "match": "http://tegata.localhost:8080/authorize*",
+              "match": "https://tegata.localhost:8080/authorize*",
               "commands": [["wait", "xpath", "//*", 10, "invalid client_id or redirect_uri", "update-image-placeholder"]]
             }
           ]
@@ -116,11 +116,11 @@
     "oidcc-ensure-registered-redirect-uri": {
       "browser": [
         {
-          "match": "http://tegata.localhost:8080/authorize*",
+          "match": "https://tegata.localhost:8080/authorize*",
           "tasks": [
             {
               "task": "Expect redirect uri mismatch error page",
-              "match": "http://tegata.localhost:8080/authorize*",
+              "match": "https://tegata.localhost:8080/authorize*",
               "commands": [["wait", "xpath", "//*", 10, "invalid client_id or redirect_uri", "update-image-placeholder"]]
             }
           ]

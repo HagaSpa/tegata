@@ -4,7 +4,7 @@ set -euo pipefail
 source "$(dirname "$0")/lib.sh"
 
 SUITE="${SUITE:-https://localhost.emobix.co.uk:8443}"
-ISSUER="http://tegata.localhost:8080"
+ISSUER="https://tegata.localhost:8080"
 CONFIG="$(dirname "$0")/conformance-config.json"
 TIMEOUT="${TIMEOUT:-120}"
 BASIC_VARIANT='{"server_metadata":"discovery","client_registration":"static_client"}'
@@ -89,7 +89,7 @@ if ! curl -fsSk -o /dev/null "$SUITE/api/runner/available"; then
   echo "conformance suite is not reachable at $SUITE (start it with: mise conformance)" >&2
   exit 1
 fi
-if ! curl -fsS -o /dev/null "$ISSUER/.well-known/openid-configuration"; then
+if ! curl -fsSk -o /dev/null "$ISSUER/.well-known/openid-configuration"; then
   echo "tegata is not reachable at $ISSUER (start it with: mise conformance)" >&2
   exit 1
 fi

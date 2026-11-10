@@ -9,7 +9,11 @@ services:
         TARGET: op
     environment:
       - TZ=Asia/Tokyo
-      - ISSUER=http://tegata.localhost:8080
+      - ISSUER=https://tegata.localhost:8080
+      - TLS_CERT_FILE=/tls/cert.pem
+      - TLS_KEY_FILE=/tls/key.pem
+    volumes:
+      - ./.tls:/tls:ro
     ports:
       - "8080:8080"
     networks:
