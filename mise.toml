@@ -49,4 +49,5 @@ run = "./scripts/conformance-test.sh"
 
 [tasks.smoke]
 description = "Check /authorize, /register, token, refresh/revoke and resource server behavior (start them with mise serve and mise serve-rs, or mise start)"
+depends = ["start"]
 run = ["./scripts/smoke-authorize.sh", "./scripts/smoke-register.sh", "./scripts/smoke-token.sh", "./scripts/smoke-refresh.sh", "./scripts/smoke-rs.sh"]

@@ -34,6 +34,7 @@ type openIDConfiguration struct {
 	CodeChallengeMethodsSupported          []string `json:"code_challenge_methods_supported"`
 	GrantTypesSupported                    []string `json:"grant_types_supported"`
 	RevocationEndpointAuthMethodsSupported []string `json:"revocation_endpoint_auth_methods_supported"`
+	ClaimsSupported                        []string `json:"claims_supported"`
 }
 
 func newOpenIDConfiguration(issuer string) *openIDConfiguration {
@@ -53,5 +54,6 @@ func newOpenIDConfiguration(issuer string) *openIDConfiguration {
 		CodeChallengeMethodsSupported:          []string{"S256"},
 		GrantTypesSupported:                    []string{"authorization_code", "refresh_token"},
 		RevocationEndpointAuthMethodsSupported: []string{"client_secret_post", "client_secret_basic"},
+		ClaimsSupported:                        []string{"sub", "iss", "aud", "exp", "iat", "auth_time", "name", "preferred_username", "email", "email_verified"},
 	}
 }

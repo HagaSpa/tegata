@@ -26,6 +26,10 @@ check_eq "Discovery: scopes_supported に notes.*・offline_access・profile・e
   "$(curl -fsS "$BASE/.well-known/openid-configuration" | jq -c .scopes_supported)" \
   '["openid","notes.read","notes.write","offline_access","profile","email"]'
 
+check_eq "Discovery: claims_supported に sub,iss,aud,exp,iat,auth_time,name,preferred_username,email,email_verified がある" \
+  "$(curl -fsS "$BASE/.well-known/openid-configuration" | jq -c .claims_supported)" \
+  '["sub","iss","aud","exp","iat","auth_time","name","preferred_username","email","email_verified"]'
+
 check_scope() {
   local scope=$1 want_aud=$2
   local res at it
