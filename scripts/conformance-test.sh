@@ -86,11 +86,11 @@ run_plan() {
 require_jq
 
 if ! curl -fsSk -o /dev/null "$SUITE/api/runner/available"; then
-  echo "conformance suite is not reachable at $SUITE (start it with: mise conformance)" >&2
+  echo "conformance suite is not reachable at $SUITE (start it with: mise conformance:start)" >&2
   exit 1
 fi
 if ! curl -fsSk -o /dev/null "$ISSUER/.well-known/openid-configuration"; then
-  echo "tegata is not reachable at $ISSUER (start it with: mise conformance)" >&2
+  echo "tegata is not reachable at $ISSUER (start it with: mise conformance:start)" >&2
   exit 1
 fi
 

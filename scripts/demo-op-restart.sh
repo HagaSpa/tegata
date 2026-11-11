@@ -9,7 +9,7 @@ RS="http://localhost:9000"
 require_jq
 for port in 8080 9000; do
   if curl -s -o /dev/null "localhost:$port"; then
-    echo "port $port is already in use (stop mise serve / mise serve-rs / mise start first)" >&2
+    echo "port $port is already in use (stop it first, e.g. mise dev:stop or mise conformance:stop)" >&2
     exit 1
   fi
 done

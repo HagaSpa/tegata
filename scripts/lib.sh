@@ -45,7 +45,7 @@ require_jq() {
 
 require_server() {
   if ! curl -fsS -o /dev/null "$BASE/"; then
-    echo "server is not reachable at $BASE (start it with: mise serve)" >&2
+    echo "server is not reachable at $BASE (start it with: mise dev:start)" >&2
     exit 1
   fi
 }

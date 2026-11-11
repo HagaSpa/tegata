@@ -1,53 +1,51 @@
 [tools]
 go = "1.27.1"
 
-[tasks.test]
+[tasks."dev:start"]
+description = "Build and start tegata, the RS and the RP with compose and keep showing their logs (open http://127.0.0.1:5556/)"
+run = "docker compose up --build"
+
+[tasks."dev:start-bg"]
+description = "Build and start tegata, the RS and the RP in the background, and wait until tegata and the RS respond"
+hide = true
+run = ["docker compose up -d --build", "./scripts/wait-ready.sh"]
+
+[tasks."dev:stop"]
+description = "Stop and remove the compose containers of dev:start and test:smoke"
+run = "docker compose down"
+
+[tasks."test:unit"]
 description = "Run all tests"
 run = "go test ./..."
 
-[tasks.race]
+[tasks."test:race"]
 description = "Run all tests with the race detector"
 run = "go test -race ./..."
 
-[tasks.start]
-description = "Build and start tegata, the RS and the RP (open http://127.0.0.1:5556/)"
-run = "docker compose up --build"
+[tasks."test:smoke"]
+description = "Start tegata, the RS and the RP in the background, then check /authorize, /register, token, refresh/revoke and resource server behavior (stop them with mise dev:stop)"
+depends = ["dev:start-bg"]
+run = ["./scripts/smoke-authorize.sh", "./scripts/smoke-register.sh", "./scripts/smoke-token.sh", "./scripts/smoke-refresh.sh", "./scripts/smoke-rs.sh"]
 
-[tasks.stop]
-description = "Stop and remove the compose containers"
-run = "docker compose down"
-
-[tasks.serve]
-description = "Run tegata locally with go run (http://localhost:8080)"
-run = "go run ./cmd/op"
-
-[tasks.serve-rs]
-description = "Run the resource server locally with go run (http://localhost:9000, needs mise serve)"
-run = "go run ./cmd/rs"
-
-[tasks.demo-op-restart]
-description = "Restart only the OP and watch the RS refetch JWKS for an unknown kid (stop mise serve / serve-rs / start first)"
-run = "./scripts/demo-op-restart.sh"
-
-[tasks.conformance-cert]
+[tasks."conformance:cert"]
 description = "Create a self-signed certificate for tegata.localhost in .tls/ for the conformance tegata (skipped when it already exists)"
+hide = true
 run = '[ -f .tls/cert.pem ] && [ -f .tls/key.pem ] || (mkdir -p .tls && cd .tls && go run "$(go env GOROOT)/src/crypto/tls/generate_cert.go" --host tegata.localhost)'
 
-[tasks.conformance]
-description = "Build and start tegata (https) and the OpenID conformance suite in the background, and wait until the suite is ready (https://localhost.emobix.co.uk:8443)"
-depends = ["conformance-cert"]
+[tasks."conformance:start"]
+description = "Build and start tegata (https) and the OpenID conformance suite in the background, and wait until the suite is ready (web UI: https://localhost.emobix.co.uk:8443)"
+depends = ["conformance:cert"]
 run = "docker compose -f compose.conformance.yaml up -d --build --wait"
 
-[tasks.conformance-stop]
+[tasks."conformance:stop"]
 description = "Stop tegata and the conformance suite (results stay in the mongodb volume)"
 run = "docker compose -f compose.conformance.yaml down"
 
-[tasks.conformance-test]
-description = "Start tegata and the conformance suite, then run the Basic OP and Config OP tests and print the results (e.g. mise conformance-test basic oidcc-server)"
-depends = ["conformance"]
+[tasks."conformance:test"]
+description = "Start tegata and the conformance suite, then run the Basic OP and Config OP tests and print the results (e.g. mise conformance:test basic oidcc-server)"
+depends = ["conformance:start"]
 run = "./scripts/conformance-test.sh"
 
-[tasks.smoke]
-description = "Check /authorize, /register, token, refresh/revoke and resource server behavior (start them with mise serve and mise serve-rs, or mise start)"
-depends = ["start"]
-run = ["./scripts/smoke-authorize.sh", "./scripts/smoke-register.sh", "./scripts/smoke-token.sh", "./scripts/smoke-refresh.sh", "./scripts/smoke-rs.sh"]
+[tasks."demo:op-restart"]
+description = "Restart only the OP and watch the RS refetch JWKS for an unknown kid (stop mise dev:start first)"
+run = "./scripts/demo-op-restart.sh"

@@ -8,7 +8,7 @@ RS="${RS:-http://localhost:9000}"
 require_jq
 require_server
 if ! curl -sS -o /dev/null "$RS/notes"; then
-  echo "resource server is not reachable at $RS (start it with: mise serve-rs)" >&2
+  echo "resource server is not reachable at $RS (start it with: mise dev:start)" >&2
   exit 1
 fi
 
