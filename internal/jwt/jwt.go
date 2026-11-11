@@ -66,7 +66,24 @@ func Sign(key *rsa.PrivateKey, kid string, claims *Claims) (*Token, error) {
 	}, nil
 }
 
-func Verify(token string, keyFor KeyFunc, now time.Time) (*Claims, error) {
+func Verify(
+	token string,
+	keyFor KeyFunc,
+	now time.Time,
+) (*Claims, error) {
+	c, err := VerifySignature(token, keyFor)
+	if err != nil {
+		return nil, err
+	}
+
+	if now.Unix() >= c.Exp {
+		return nil, ErrExpired
+	}
+
+	return c, nil
+}
+
+func VerifySignature(token string, keyFor KeyFunc) (*Claims, error) {
 	sl := strings.Split(token, ".")
 	if len(sl) != 3 {
 		return nil, errors.New("invalid token")
@@ -110,9 +127,7 @@ func Verify(token string, keyFor KeyFunc, now time.Time) (*Claims, error) {
 	if err := json.Unmarshal(pd, &c); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal payload: %w", err)
 	}
-	if now.Unix() >= c.Exp {
-		return nil, ErrExpired
-	}
+
 	return &c, nil
 }
 
