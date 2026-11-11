@@ -31,10 +31,7 @@ func NewSessions() *Sessions {
 	}
 }
 
-func (s *Sessions) Save(
-	sub string,
-	authTime time.Time,
-) string {
+func (s *Sessions) Save(sub string, authTime time.Time) string {
 	key := generateRandomString()
 	session := &Session{
 		Sub:       sub,
@@ -47,9 +44,7 @@ func (s *Sessions) Save(
 	return key
 }
 
-func (s *Sessions) Get(
-	key string,
-) (*Session, error) {
+func (s *Sessions) Get(key string) (*Session, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	session := s.ss[key]
@@ -60,4 +55,10 @@ func (s *Sessions) Get(
 		return nil, ErrInvalidSession
 	}
 	return session, nil
+}
+
+func (s *Sessions) Delete(key string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.ss, key)
 }

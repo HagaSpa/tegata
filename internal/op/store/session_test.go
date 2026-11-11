@@ -119,4 +119,31 @@ func TestSessions(t *testing.T) {
 			}
 		}
 	})
+
+	t.Run("Save→Delete→Get でsessionが消えている", func(t *testing.T) {
+		s := newFixedSessions(t)
+		key := s.Save("u-0001", s.now())
+		s.Delete(key)
+		_, err := s.Get(key)
+		if err == nil {
+			t.Fatalf("Delete(%q) failed.", key)
+		}
+	})
+
+	t.Run("存在しない key を Delete. 2回行っても問題ない", func(t *testing.T) {
+		s := newFixedSessions(t)
+		s.Delete("noExist")
+		s.Delete("noExist")
+	})
+
+	t.Run("2つ Save して片方だけ Delete. Delete してない方は Get できる", func(t *testing.T) {
+		s := newFixedSessions(t)
+		k1 := s.Save("u-0001", s.now())
+		k2 := s.Save("u-0002", s.now())
+		s.Delete(k1)
+		_, err := s.Get(k2)
+		if err != nil {
+			t.Fatalf("Get(%q) failed: %v", k2, err)
+		}
+	})
 }
