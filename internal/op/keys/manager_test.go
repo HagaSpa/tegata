@@ -71,4 +71,20 @@ func TestManager(t *testing.T) {
 			t.Errorf("Verify() error = %v, want jwt.ErrExpired", err)
 		}
 	})
+
+	t.Run("期限切れでも VerifySignature は Claims を返す", func(t *testing.T) {
+		m := newManager(t)
+		tok, err := m.Sign(newFixedClaims())
+		if err != nil {
+			t.Fatalf("Sign() failed: %v", err)
+		}
+		m.now = func() time.Time { return testBase.Add(time.Hour) }
+		c, err := m.VerifySignature(tok.String())
+		if err != nil {
+			t.Fatalf("VerifySignature() error = %v", err)
+		}
+		if c.Sub != "u-0001" {
+			t.Errorf("Claims.Sub = %s, want u-0001", c.Sub)
+		}
+	})
 }
