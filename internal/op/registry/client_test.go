@@ -98,14 +98,14 @@ func TestClients_ValidatePostLogoutRedirectURI(t *testing.T) {
 			want:     true,
 		},
 		{
-			name:     "登録された URI に部分一致",
-			clientID: "comformance",
+			name:     "登録された URI にクエリパラメータを足した場合",
+			clientID: "conformance",
 			uri:      "https://localhost.emobix.co.uk:8443/test/a/tegata/post_logout_redirect?foo=bar",
 			want:     false,
 		},
 		{
 			name:     "ログイン用の RedirectURI は、ログアウトでは使わせない",
-			clientID: "comformance",
+			clientID: "conformance",
 			uri:      "https://localhost.emobix.co.uk:8443/test/a/tegata/callback",
 			want:     false,
 		},
@@ -123,7 +123,7 @@ func TestClients_ValidatePostLogoutRedirectURI(t *testing.T) {
 		},
 		{
 			name:     "uri が空の場合",
-			clientID: "comformance",
+			clientID: "conformance",
 			uri:      "",
 			want:     false,
 		},
