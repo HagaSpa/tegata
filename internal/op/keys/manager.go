@@ -70,6 +70,10 @@ func (m *Manager) Verify(token string) (*jwt.Claims, error) {
 	return jwt.Verify(token, m.publicKey, m.now())
 }
 
+func (m *Manager) VerifySignature(token string) (*jwt.Claims, error) {
+	return jwt.VerifySignature(token, m.publicKey)
+}
+
 func (m *Manager) publicKey(kid string) (*rsa.PublicKey, error) {
 	if kid != m.keyID {
 		return nil, ErrUnknownKey
