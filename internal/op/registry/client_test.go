@@ -83,3 +83,58 @@ func TestClients_Authenticate(t *testing.T) {
 		})
 	}
 }
+
+func TestClients_ValidatePostLogoutRedirectURI(t *testing.T) {
+	tests := []struct {
+		name     string
+		clientID string
+		uri      string
+		want     bool
+	}{
+		{
+			name:     "登録された URI に完全一致",
+			clientID: "conformance",
+			uri:      "https://localhost.emobix.co.uk:8443/test/a/tegata/post_logout_redirect",
+			want:     true,
+		},
+		{
+			name:     "登録された URI に部分一致",
+			clientID: "comformance",
+			uri:      "https://localhost.emobix.co.uk:8443/test/a/tegata/post_logout_redirect?foo=bar",
+			want:     false,
+		},
+		{
+			name:     "ログイン用の RedirectURI は、ログアウトでは使わせない",
+			clientID: "comformance",
+			uri:      "https://localhost.emobix.co.uk:8443/test/a/tegata/callback",
+			want:     false,
+		},
+		{
+			name:     "登録されていない clientID",
+			clientID: "noExistID",
+			uri:      "https://localhost.emobix.co.uk:8443/test/a/tegata/post_logout_redirect",
+			want:     false,
+		},
+		{
+			name:     "URI を登録していないクライアント",
+			clientID: "tegata-sample",
+			uri:      "https://localhost.emobix.co.uk:8443/test/a/tegata/post_logout_redirect",
+			want:     false,
+		},
+		{
+			name:     "uri が空の場合",
+			clientID: "comformance",
+			uri:      "",
+			want:     false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := NewClients()
+			got := s.ValidatePostLogoutRedirectURI(tt.clientID, tt.uri)
+			if got != tt.want {
+				t.Errorf("ValidatePostLogoutRedirectURI() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

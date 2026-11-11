@@ -6,8 +6,9 @@ import (
 )
 
 type Client struct {
-	Secret       string
-	RedirectURIs []string
+	Secret                 string
+	RedirectURIs           []string
+	PostLogoutRedirectURIs []string
 }
 
 type Clients struct {
@@ -34,6 +35,9 @@ func NewClients() *Clients {
 				RedirectURIs: []string{
 					"https://localhost.emobix.co.uk:8443/test/a/tegata/callback",
 				},
+				PostLogoutRedirectURIs: []string{
+					"https://localhost.emobix.co.uk:8443/test/a/tegata/post_logout_redirect",
+				},
 			},
 			"conformance2": {
 				Secret: "conformance2-secret",
@@ -59,4 +63,12 @@ func (s *Clients) Authenticate(clientID string, secret string) bool {
 		return false
 	}
 	return subtle.ConstantTimeCompare([]byte(c.Secret), []byte(secret)) == 1
+}
+
+func (s *Clients) ValidatePostLogoutRedirectURI(clientID string, uri string) bool {
+	c, ok := s.clients[clientID]
+	if !ok {
+		return false
+	}
+	return slices.Contains(c.PostLogoutRedirectURIs, uri)
 }
