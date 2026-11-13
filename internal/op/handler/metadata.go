@@ -25,7 +25,7 @@ type openIDConfiguration struct {
 	UserinfoEndpoint                       string   `json:"userinfo_endpoint"`
 	JwksUri                                string   `json:"jwks_uri"`
 	RevocationEndpoint                     string   `json:"revocation_endpoint"`
-	EndSessionEndpoint                     string   `json:"end_session_endpoind"`
+	EndSessionEndpoint                     string   `json:"end_session_endpoint"`
 	RequestURIParameterSupported           bool     `json:"request_uri_parameter_supported"`
 	ResponseTypesSupported                 []string `json:"response_types_supported"`
 	SubjectTypesSupported                  []string `json:"subject_types_supported"`
