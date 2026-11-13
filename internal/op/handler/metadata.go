@@ -25,6 +25,7 @@ type openIDConfiguration struct {
 	UserinfoEndpoint                       string   `json:"userinfo_endpoint"`
 	JwksUri                                string   `json:"jwks_uri"`
 	RevocationEndpoint                     string   `json:"revocation_endpoint"`
+	EndSessionEndpoint                     string   `json:"end_session_endpoind"`
 	RequestURIParameterSupported           bool     `json:"request_uri_parameter_supported"`
 	ResponseTypesSupported                 []string `json:"response_types_supported"`
 	SubjectTypesSupported                  []string `json:"subject_types_supported"`
@@ -45,6 +46,7 @@ func newOpenIDConfiguration(issuer string) *openIDConfiguration {
 		UserinfoEndpoint:                       issuer + "/userinfo",
 		JwksUri:                                issuer + "/.well-known/jwks.json",
 		RevocationEndpoint:                     issuer + "/revoke",
+		EndSessionEndpoint:                     issuer + "/logout",
 		RequestURIParameterSupported:           false,
 		ResponseTypesSupported:                 []string{"code"},
 		SubjectTypesSupported:                  []string{"public"},

@@ -21,6 +21,7 @@ func Test_newOpenIDConfiguration(t *testing.T) {
 				UserinfoEndpoint:                       "testIssuer/userinfo",
 				JwksUri:                                "testIssuer/.well-known/jwks.json",
 				RevocationEndpoint:                     "testIssuer/revoke",
+				EndSessionEndpoint:                     "testIssuer/logout",
 				RequestURIParameterSupported:           false,
 				ResponseTypesSupported:                 []string{"code"},
 				SubjectTypesSupported:                  []string{"public"},
