@@ -14,6 +14,10 @@ run = ["docker compose up -d --build", "./scripts/wait-ready.sh"]
 description = "Stop and remove the compose containers of dev:start and test:smoke"
 run = "docker compose down"
 
+[tasks."test:lint"]
+description = "Fail when gofmt would change any file, then run go vet on all packages"
+run = ['out="$(gofmt -l .)"; [ -z "$out" ] || { echo "$out"; exit 1; }', "go vet ./..."]
+
 [tasks."test:unit"]
 description = "Run all tests"
 run = "go test ./..."
