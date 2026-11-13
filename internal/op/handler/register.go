@@ -54,7 +54,7 @@ func (h *RegisterHandler) Get(w http.ResponseWriter, r *http.Request) {
 	param := templateParam{
 		ID: id,
 	}
-	render(h.regPage, w, &param)
+	render(h.regPage, w, &param, http.StatusOK)
 }
 
 func (h *RegisterHandler) Post(w http.ResponseWriter, r *http.Request) {
@@ -77,7 +77,7 @@ func (h *RegisterHandler) Post(w http.ResponseWriter, r *http.Request) {
 			ID:    id,
 			Error: "username is required",
 		}
-		render(h.regPage, w, &param)
+		render(h.regPage, w, &param, http.StatusOK)
 		return
 	}
 
@@ -88,7 +88,7 @@ func (h *RegisterHandler) Post(w http.ResponseWriter, r *http.Request) {
 			ID:    id,
 			Error: "Please make your password 15-64 characters long",
 		}
-		render(h.regPage, w, &param)
+		render(h.regPage, w, &param, http.StatusOK)
 		return
 	}
 
@@ -105,7 +105,7 @@ func (h *RegisterHandler) Post(w http.ResponseWriter, r *http.Request) {
 				ID:    id,
 				Error: "Username is already in use.",
 			}
-			render(h.regPage, w, &param)
+			render(h.regPage, w, &param, http.StatusOK)
 		} else {
 			writeInternalError(w)
 		}
@@ -116,5 +116,5 @@ func (h *RegisterHandler) Post(w http.ResponseWriter, r *http.Request) {
 		ID:      id,
 		Message: "Sign Up is success.",
 	}
-	render(h.indPage, w, &param)
+	render(h.indPage, w, &param, http.StatusOK)
 }

@@ -81,7 +81,7 @@ func (h *LoginHandler) Post(w http.ResponseWriter, r *http.Request) {
 			ID:    id,
 			Error: "invalid username or password",
 		}
-		render(h.file, w, &param)
+		render(h.file, w, &param, http.StatusOK)
 		return
 	}
 

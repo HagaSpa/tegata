@@ -77,7 +77,7 @@ func (h *AuthorizeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		param := templateParam{
 			ID: id,
 		}
-		render(h.file, w, &param)
+		render(h.file, w, &param, http.StatusOK)
 	}
 }
 

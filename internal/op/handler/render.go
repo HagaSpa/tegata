@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"bytes"
 	"embed"
 	"html/template"
 	"net/http"
@@ -20,9 +21,13 @@ func render(
 	f *template.Template,
 	w http.ResponseWriter,
 	p *templateParam,
+	status int,
 ) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := f.Execute(w, p); err != nil {
+	var buf bytes.Buffer
+	if err := f.Execute(&buf, p); err != nil {
 		writeInternalError(w)
 	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(status)
+	w.Write(buf.Bytes())
 }
