@@ -169,11 +169,11 @@ func (h *AuthorizeHandler) authenticatedSession(
 	r *http.Request,
 	opt loginOptions,
 ) *store.Session {
-	c, err := r.Cookie("session_id")
+	key, err := sessionKey(r)
 	if err != nil {
 		return nil
 	}
-	s, err := h.session.Get(c.Value)
+	s, err := h.session.Get(key)
 	if err != nil {
 		return nil
 	}

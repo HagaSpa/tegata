@@ -88,13 +88,12 @@ func (h *LogoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	cookie, err := r.Cookie("session_id")
+	key, err := sessionKey(r)
 	if err != nil {
 		http.Error(w, "session_id is required", http.StatusBadRequest)
 		return
 	}
 
-	key := cookie.Value
 	session, err := h.session.Get(key)
 	if err != nil || session.Sub != claims.Sub {
 		http.Error(w, "invalid session_id", http.StatusBadRequest)
@@ -102,7 +101,7 @@ func (h *LogoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.session.Delete(key)
-	http.SetCookie(w, &http.Cookie{Name: "session_id", Value: "", MaxAge: -1, HttpOnly: true, Path: "/"})
+	clearSessionCookie(w)
 
 	if hasURI {
 		state := r.Form.Get("state")
