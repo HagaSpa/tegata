@@ -115,3 +115,13 @@ func (h *LogoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	http.Error(w, "", http.StatusBadRequest)
 }
+
+// LogoutHandler.Post navigates to logout.html even without a session.
+func (h *LogoutHandler) Post(w http.ResponseWriter, r *http.Request) {
+	key, _ := sessionKey(r)
+
+	h.session.Delete(key)
+	clearSessionCookie(w)
+
+	render(h.file, w, &templateParam{}, http.StatusOK)
+}
