@@ -119,7 +119,7 @@ func TestLogoutHandler_Post_Error(t *testing.T) {
 		},
 		{
 			name:                  "hint から復号した claims の iss と、issuer が一致しない",
-			idTokenHint:           signToken(t, km, idTokenClaims("http:://evil")),
+			idTokenHint:           signToken(t, km, idTokenClaims("http://evil")),
 			clientID:              "",
 			postLogoutRedirectURI: testPostLogoutRedirectURI,
 		},
@@ -157,7 +157,7 @@ func TestLogoutHandler_Post_Error(t *testing.T) {
 			h.ServeHTTP(rec, newLogoutRequest(http.MethodPost, params, key))
 
 			if rec.Code != http.StatusBadRequest {
-				t.Errorf("When get unknown id_token_hint, res.Code must be StatusBadRequest")
+				t.Errorf("status = %d, want %d", rec.Code, http.StatusBadRequest)
 			}
 			if got := rec.Header().Get("Location"); got != "" {
 				t.Errorf("Location = %q, want empty", got)
