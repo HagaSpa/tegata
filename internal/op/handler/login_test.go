@@ -35,7 +35,7 @@ func TestLoginHandler_Post(t *testing.T) {
 		{"フォームの redirect_uri は無視する", func(f url.Values) { f.Set("redirect_uri", "http://evil/cb") }, http.StatusFound, ""},
 	}
 
-	h, reqs, _ := newLoginHandler(t)
+	h, reqs, sessions, _ := newLoginHandler(t)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			id := saveRequest(t, reqs, nil)
@@ -72,7 +72,7 @@ func TestLoginHandler_Post(t *testing.T) {
 				if cookies[0].MaxAge != int(store.SessionTTL.Seconds()) {
 					t.Errorf("session.MaxAge must be store.SessionTTL.Seconds(), session.MaxAge: %d", cookies[0].MaxAge)
 				}
-				s, err := h.session.Get(cookies[0].Value)
+				s, err := sessions.Get(cookies[0].Value)
 				if err != nil {
 					t.Fatalf("Get(%q) failed: %v", cookies[0].Value, err)
 				}
@@ -95,7 +95,7 @@ func TestLoginHandler_Post(t *testing.T) {
 }
 
 func TestLoginHandler_Post_RetryAfterWrongPassword(t *testing.T) {
-	h, reqs, _ := newLoginHandler(t)
+	h, reqs, _, _ := newLoginHandler(t)
 	id := saveRequest(t, reqs, nil)
 
 	wrong := loginForm(id)
@@ -110,7 +110,7 @@ func TestLoginHandler_Post_RetryAfterWrongPassword(t *testing.T) {
 }
 
 func TestLoginHandler_Post_ApproveIsSingleUse(t *testing.T) {
-	h, reqs, _ := newLoginHandler(t)
+	h, reqs, _, _ := newLoginHandler(t)
 	id := saveRequest(t, reqs, nil)
 
 	redirectQuery(t, postLogin(h, loginForm(id)))
@@ -118,7 +118,7 @@ func TestLoginHandler_Post_ApproveIsSingleUse(t *testing.T) {
 }
 
 func TestLoginHandler_Post_DenyConsumesRequest(t *testing.T) {
-	h, reqs, _ := newLoginHandler(t)
+	h, reqs, _, _ := newLoginHandler(t)
 	id := saveRequest(t, reqs, nil)
 
 	deny := loginForm(id)
@@ -128,7 +128,7 @@ func TestLoginHandler_Post_DenyConsumesRequest(t *testing.T) {
 }
 
 func TestLoginHandler_Post_InvalidActionKeepsRequest(t *testing.T) {
-	h, reqs, _ := newLoginHandler(t)
+	h, reqs, _, _ := newLoginHandler(t)
 	id := saveRequest(t, reqs, nil)
 
 	invalid := loginForm(id)
@@ -141,7 +141,7 @@ func TestLoginHandler_Post_InvalidActionKeepsRequest(t *testing.T) {
 }
 
 func TestLoginHandler_Post_IssuesCodeFromSavedRequest(t *testing.T) {
-	h, reqs, codes := newLoginHandler(t)
+	h, reqs, _, codes := newLoginHandler(t)
 	id := saveRequest(t, reqs, func(r *store.AuthorizeRequest) {
 		r.Scope = "openid profile"
 		r.Nonce = "nonce-saved"
@@ -166,7 +166,7 @@ func TestLoginHandler_Post_IssuesCodeFromSavedRequest(t *testing.T) {
 }
 
 func TestLoginHandler_Post_OmitsStateWhenAbsent(t *testing.T) {
-	h, reqs, _ := newLoginHandler(t)
+	h, reqs, _, _ := newLoginHandler(t)
 	id := saveRequest(t, reqs, func(r *store.AuthorizeRequest) { r.State = "" })
 
 	if q := redirectQuery(t, postLogin(h, loginForm(id))); q.Has("state") {
@@ -175,7 +175,7 @@ func TestLoginHandler_Post_OmitsStateWhenAbsent(t *testing.T) {
 }
 
 func TestLoginHandler_Post_RejectsUnregisteredClient(t *testing.T) {
-	h, reqs, _ := newLoginHandler(t)
+	h, reqs, _, _ := newLoginHandler(t)
 	id := saveRequest(t, reqs, func(r *store.AuthorizeRequest) { r.ClientID = "unknown" })
 
 	assertBadRequest(t, postLogin(h, loginForm(id)))

@@ -12,28 +12,26 @@ import (
 	"github.com/HagaSpa/tegata/internal/op/store"
 )
 
-type RedirectURIValidator interface {
-	ValidateRedirectURI(clientID string, uri string) bool
+type AuthorizeRequestSaver interface {
+	Save(req *store.AuthorizeRequest) string
 }
 
-type AuthorizeRequestOperator interface {
-	Save(req *store.AuthorizeRequest) string
-	Find(key string) (*store.AuthorizeRequest, error)
-	FindAndDelete(key string) (*store.AuthorizeRequest, error)
+type SessionGetter interface {
+	Get(key string) (*store.Session, error)
 }
 
 type AuthorizeHandler struct {
 	clients RedirectURIValidator
 	file    *template.Template
-	authReq AuthorizeRequestOperator
-	session SessionOperator
+	authReq AuthorizeRequestSaver
+	session SessionGetter
 	code    CodeIssuer
 }
 
 func NewAuthorizeHandler(
 	clients RedirectURIValidator,
-	authReq AuthorizeRequestOperator,
-	session SessionOperator,
+	authReq AuthorizeRequestSaver,
+	session SessionGetter,
 	code CodeIssuer,
 ) *AuthorizeHandler {
 	f := template.Must(template.ParseFS(htmlFS, "index.html"))
@@ -54,8 +52,7 @@ func (h *AuthorizeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	req := parseAuthorizeRequest(r.Form)
-	if !h.clients.ValidateRedirectURI(req.ClientID, req.RedirectURI) {
-		http.Error(w, "invalid client_id or redirect_uri", http.StatusBadRequest)
+	if !validateRedirectURI(w, h.clients, req) {
 		return
 	}
 

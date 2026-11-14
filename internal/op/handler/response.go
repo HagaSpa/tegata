@@ -62,6 +62,18 @@ func redirectToClient(
 	http.Redirect(w, r, u.String(), http.StatusFound)
 }
 
+type CodeIssuer interface {
+	Issue(
+		clientID string,
+		redirectURI string,
+		scope string,
+		codeChallenge string,
+		nonce string,
+		sub string,
+		authTime time.Time,
+	) string
+}
+
 func redirectWithCode(
 	w http.ResponseWriter,
 	r *http.Request,

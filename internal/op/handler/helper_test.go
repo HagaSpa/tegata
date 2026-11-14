@@ -87,7 +87,7 @@ func assertBadRequest(t *testing.T, rec *httptest.ResponseRecorder) {
 	}
 }
 
-func newLoginHandler(t *testing.T) (*LoginHandler, *store.AuthorizeRequests, *store.Codes) {
+func newLoginHandler(t *testing.T) (*LoginHandler, *store.AuthorizeRequests, *store.Sessions, *store.Codes) {
 	t.Helper()
 	cl := registry.NewClients()
 	u, err := registry.NewUsers(
@@ -104,7 +104,7 @@ func newLoginHandler(t *testing.T) (*LoginHandler, *store.AuthorizeRequests, *st
 	ar := store.NewAuthorizeRequests()
 	ss := store.NewSessions()
 	h := NewLoginHandler(cl, u, co, ar, ss)
-	return h, ar, co
+	return h, ar, ss, co
 }
 
 func postLogin(h *LoginHandler, f url.Values) *httptest.ResponseRecorder {

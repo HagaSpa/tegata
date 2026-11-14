@@ -227,8 +227,8 @@ func TestAuthorizeHandler_Session(t *testing.T) {
 }
 
 func TestAuthorizeHandler_PromptNoneAfterLogin(t *testing.T) {
-	lh, reqs, codes := newLoginHandler(t)
-	h := NewAuthorizeHandler(registry.NewClients(), reqs, lh.session, lh.code)
+	lh, reqs, sessions, codes := newLoginHandler(t)
+	h := NewAuthorizeHandler(registry.NewClients(), reqs, sessions, lh.code)
 
 	id := idFromBody(t, getAuthorize(h, validAuthorizeQuery()).Body.String())
 	login := postLogin(lh, loginForm(id))
@@ -237,7 +237,7 @@ func TestAuthorizeHandler_PromptNoneAfterLogin(t *testing.T) {
 	if len(cookies) != 1 {
 		t.Fatalf("cookies = %v, want only session_id", cookies)
 	}
-	session, err := lh.session.Get(cookies[0].Value)
+	session, err := sessions.Get(cookies[0].Value)
 	if err != nil {
 		t.Fatalf("Get() failed: %v", err)
 	}
@@ -257,8 +257,8 @@ func TestAuthorizeHandler_PromptNoneAfterLogin(t *testing.T) {
 func TestAuthorizeHandler_ThenLogin(t *testing.T) {
 	for _, s := range authorizeSenders {
 		t.Run(s.method, func(t *testing.T) {
-			lh, reqs, _ := newLoginHandler(t)
-			h := NewAuthorizeHandler(registry.NewClients(), reqs, lh.session, lh.code)
+			lh, reqs, sessions, _ := newLoginHandler(t)
+			h := NewAuthorizeHandler(registry.NewClients(), reqs, sessions, lh.code)
 
 			page := s.send(h, validAuthorizeQuery())
 			if page.Code != http.StatusOK {

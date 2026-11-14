@@ -12,21 +12,13 @@ type UserAuthenticator interface {
 	Authenticate(username string, password string) (string, error)
 }
 
-type CodeIssuer interface {
-	Issue(
-		clientID string,
-		redirectURI string,
-		scope string,
-		codeChallenge string,
-		nonce string,
-		sub string,
-		authTime time.Time,
-	) string
+type AuthorizeRequestFindDeleter interface {
+	Find(key string) (*store.AuthorizeRequest, error)
+	FindAndDelete(key string) (*store.AuthorizeRequest, error)
 }
 
-type SessionOperator interface {
+type SessionSaver interface {
 	Save(sub string, authTime time.Time) string
-	Get(key string) (*store.Session, error)
 }
 
 type LoginHandler struct {
@@ -34,16 +26,16 @@ type LoginHandler struct {
 	user    UserAuthenticator
 	code    CodeIssuer
 	file    *template.Template
-	authReq AuthorizeRequestOperator
-	session SessionOperator
+	authReq AuthorizeRequestFindDeleter
+	session SessionSaver
 }
 
 func NewLoginHandler(
 	clients RedirectURIValidator,
 	user UserAuthenticator,
 	code CodeIssuer,
-	authReq AuthorizeRequestOperator,
-	session SessionOperator,
+	authReq AuthorizeRequestFindDeleter,
+	session SessionSaver,
 ) *LoginHandler {
 	f := template.Must(template.ParseFS(htmlFS, "index.html"))
 	return &LoginHandler{
@@ -70,8 +62,7 @@ func (h *LoginHandler) Post(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !h.clients.ValidateRedirectURI(req.ClientID, req.RedirectURI) {
-		http.Error(w, "invalid client_id or redirect_uri", http.StatusBadRequest)
+	if !validateRedirectURI(w, h.clients, req) {
 		return
 	}
 
