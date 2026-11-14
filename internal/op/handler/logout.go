@@ -58,7 +58,7 @@ func (h *LogoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	hint := r.Form.Get("id_token_hint")
 	if hint == "" {
-		http.Error(w, "no exist id_token_hint", http.StatusBadRequest)
+		render(h.confirmFile, w, &templateParam{Error: "no exist id_token_hint"}, http.StatusBadRequest)
 		return
 	}
 
@@ -93,13 +93,13 @@ func (h *LogoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	key, err := sessionKey(r)
 	if err != nil {
-		http.Error(w, "session_id is required", http.StatusBadRequest)
+		render(h.confirmFile, w, &templateParam{Error: "session_id is required"}, http.StatusBadRequest)
 		return
 	}
 
 	session, err := h.session.Get(key)
 	if err != nil || session.Sub != claims.Sub {
-		http.Error(w, "invalid session_id", http.StatusBadRequest)
+		render(h.confirmFile, w, &templateParam{Error: "invalid session_id"}, http.StatusBadRequest)
 		return
 	}
 
@@ -116,7 +116,7 @@ func (h *LogoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Error(w, "", http.StatusBadRequest)
+	render(h.logoutFile, w, &templateParam{}, http.StatusOK)
 }
 
 // LogoutHandler.Post navigates to logout.html even without a session.
