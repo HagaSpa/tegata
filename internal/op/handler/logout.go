@@ -71,8 +71,8 @@ func (h *LogoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	clientID := r.Form.Get("client_id")
-	hasCliendID := clientID != ""
-	if hasCliendID {
+	hasClientID := clientID != ""
+	if hasClientID {
 		if !claims.Aud.Contains(clientID) {
 			render(h.file, w, &templateParam{Error: "client_id does not match id_token_hint"}, http.StatusBadRequest)
 			return
