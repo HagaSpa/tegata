@@ -118,6 +118,12 @@ func TestLogoutHandler_Post_Error(t *testing.T) {
 		if rec.Code != http.StatusBadRequest {
 			t.Errorf("When get unknown id_token_hint, res.Code must be StatusBadRequest")
 		}
+		if got := rec.Header().Get("Location"); got != "" {
+			t.Errorf("Location = %q, want empty", got)
+		}
+		if _, err := ss.Get(key); err != nil {
+			t.Errorf("Sessions.Get() error = %v", err)
+		}
 	})
 
 	t.Run("hint から復号した claims の iss と、issuer が一致しない", func(t *testing.T) {
@@ -133,6 +139,12 @@ func TestLogoutHandler_Post_Error(t *testing.T) {
 
 		if rec.Code != http.StatusBadRequest {
 			t.Errorf("When iss and issuer not matched, res.Code must be StatusBadRequest")
+		}
+		if got := rec.Header().Get("Location"); got != "" {
+			t.Errorf("Location = %q, want empty", got)
+		}
+		if _, err := ss.Get(key); err != nil {
+			t.Errorf("Sessions.Get() error = %v", err)
 		}
 	})
 
@@ -151,6 +163,12 @@ func TestLogoutHandler_Post_Error(t *testing.T) {
 		if rec.Code != http.StatusBadRequest {
 			t.Errorf("When get unknown client_id, res.Code must be StatusBadRequest")
 		}
+		if got := rec.Header().Get("Location"); got != "" {
+			t.Errorf("Location = %q, want empty", got)
+		}
+		if _, err := ss.Get(key); err != nil {
+			t.Errorf("Sessions.Get() error = %v", err)
+		}
 	})
 
 	t.Run("post_logout_redirect_uri が送られてきた時に、それが Client に登録されていない ", func(t *testing.T) {
@@ -167,6 +185,12 @@ func TestLogoutHandler_Post_Error(t *testing.T) {
 
 		if rec.Code != http.StatusBadRequest {
 			t.Errorf("When get unknown post_logout_redirect_uri, res.Code must be StatusBadRequest")
+		}
+		if got := rec.Header().Get("Location"); got != "" {
+			t.Errorf("Location = %q, want empty", got)
+		}
+		if _, err := ss.Get(key); err != nil {
+			t.Errorf("Sessions.Get() error = %v", err)
 		}
 	})
 }
