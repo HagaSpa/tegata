@@ -23,6 +23,7 @@ func setSessionCookie(w http.ResponseWriter, key string) {
 		MaxAge:   int(store.SessionTTL.Seconds()),
 		HttpOnly: true,
 		Path:     "/",
+		SameSite: http.SameSiteLaxMode,
 	})
 }
 
