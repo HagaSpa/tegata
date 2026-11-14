@@ -23,11 +23,12 @@ type SessionGetDeleter interface {
 }
 
 type LogoutHandler struct {
-	verifier  SignatureVerifier
-	validator PostLogoutRedirectURIValidator
-	session   SessionGetDeleter
-	issuer    string
-	file      *template.Template
+	verifier    SignatureVerifier
+	validator   PostLogoutRedirectURIValidator
+	session     SessionGetDeleter
+	issuer      string
+	logoutFile  *template.Template
+	confirmFile *template.Template
 }
 
 func NewLogoutHandler(
@@ -36,13 +37,15 @@ func NewLogoutHandler(
 	session SessionGetDeleter,
 	issuer string,
 ) *LogoutHandler {
-	f := template.Must(template.ParseFS(htmlFS, "logout.html"))
+	lf := template.Must(template.ParseFS(htmlFS, "logout.html"))
+	cf := template.Must(template.ParseFS(htmlFS, "logout_confirm.html"))
 	return &LogoutHandler{
-		verifier:  verifier,
-		validator: validator,
-		session:   session,
-		issuer:    issuer,
-		file:      f,
+		verifier:    verifier,
+		validator:   validator,
+		session:     session,
+		issuer:      issuer,
+		logoutFile:  lf,
+		confirmFile: cf,
 	}
 }
 
@@ -61,12 +64,12 @@ func (h *LogoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	claims, err := h.verifier.VerifySignature(hint)
 	if err != nil {
-		render(h.file, w, &templateParam{Error: "id_token_hint is invalid"}, http.StatusBadRequest)
+		render(h.logoutFile, w, &templateParam{Error: "id_token_hint is invalid"}, http.StatusBadRequest)
 		return
 	}
 
 	if claims.Iss != h.issuer {
-		render(h.file, w, &templateParam{Error: "id_token_hint was not issued by this OP"}, http.StatusBadRequest)
+		render(h.logoutFile, w, &templateParam{Error: "id_token_hint was not issued by this OP"}, http.StatusBadRequest)
 		return
 	}
 
@@ -74,7 +77,7 @@ func (h *LogoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	hasClientID := clientID != ""
 	if hasClientID {
 		if !claims.Aud.Contains(clientID) {
-			render(h.file, w, &templateParam{Error: "client_id does not match id_token_hint"}, http.StatusBadRequest)
+			render(h.logoutFile, w, &templateParam{Error: "client_id does not match id_token_hint"}, http.StatusBadRequest)
 			return
 		}
 	}
@@ -83,7 +86,7 @@ func (h *LogoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	hasURI := uri != ""
 	if hasURI {
 		if !h.validator.ValidatePostLogoutRedirectURI(claims.Aud[0], uri) {
-			render(h.file, w, &templateParam{Error: "post_logout_redirect_uri is not registered"}, http.StatusBadRequest)
+			render(h.logoutFile, w, &templateParam{Error: "post_logout_redirect_uri is not registered"}, http.StatusBadRequest)
 			return
 		}
 	}
@@ -123,5 +126,5 @@ func (h *LogoutHandler) Post(w http.ResponseWriter, r *http.Request) {
 	h.session.Delete(key)
 	clearSessionCookie(w)
 
-	render(h.file, w, &templateParam{}, http.StatusOK)
+	render(h.logoutFile, w, &templateParam{}, http.StatusOK)
 }
