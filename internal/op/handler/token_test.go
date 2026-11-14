@@ -94,7 +94,7 @@ func decodePayload(t *testing.T, token string) map[string]any {
 }
 
 func TestTokenHandler_Post(t *testing.T) {
-	cases := []struct {
+	tests := []struct {
 		name       string
 		basic      bool
 		editForm   func(f url.Values)
@@ -114,25 +114,25 @@ func TestTokenHandler_Post(t *testing.T) {
 
 	h, codes := newTokenHandler(t)
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			f := validTokenForm(issueCode(t, codes, "openid", testVerifier, testNonce))
-			if tc.editForm != nil {
-				tc.editForm(f)
+			if tt.editForm != nil {
+				tt.editForm(f)
 			}
 
-			rec := postToken(h, f, tc.basic)
+			rec := postToken(h, f, tt.basic)
 
-			if rec.Code != tc.wantStatus {
-				t.Fatalf("status = %d, want %d (body %q)", rec.Code, tc.wantStatus, rec.Body.String())
+			if rec.Code != tt.wantStatus {
+				t.Fatalf("status = %d, want %d (body %q)", rec.Code, tt.wantStatus, rec.Body.String())
 			}
 			body := decodeJSON(t, rec)
 
-			if tc.wantError != "" {
-				if got := body["error"]; got != tc.wantError {
-					t.Errorf("error = %v, want %q", got, tc.wantError)
+			if tt.wantError != "" {
+				if got := body["error"]; got != tt.wantError {
+					t.Errorf("error = %v, want %q", got, tt.wantError)
 				}
-				if tc.wantStatus == http.StatusUnauthorized && tc.basic && rec.Header().Get("WWW-Authenticate") == "" {
+				if tt.wantStatus == http.StatusUnauthorized && tt.basic && rec.Header().Get("WWW-Authenticate") == "" {
 					t.Errorf("401 for Basic auth must carry WWW-Authenticate")
 				}
 				return
@@ -401,7 +401,7 @@ func TestTokenHandler_Post_Refresh(t *testing.T) {
 }
 
 func TestTokenHandler_Post_Refresh_Errors(t *testing.T) {
-	cases := []struct {
+	tests := []struct {
 		name       string
 		editForm   func(f url.Values)
 		wantStatus int
@@ -416,17 +416,17 @@ func TestTokenHandler_Post_Refresh_Errors(t *testing.T) {
 	}
 
 	h, codes := newTokenHandler(t)
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			f := refreshForm(loginRefreshToken(t, h, codes))
-			tc.editForm(f)
+			tt.editForm(f)
 
 			rec := postToken(h, f, false)
-			if rec.Code != tc.wantStatus {
-				t.Fatalf("status = %d, want %d (body %q)", rec.Code, tc.wantStatus, rec.Body.String())
+			if rec.Code != tt.wantStatus {
+				t.Fatalf("status = %d, want %d (body %q)", rec.Code, tt.wantStatus, rec.Body.String())
 			}
-			if got := decodeJSON(t, rec)["error"]; got != tc.wantError {
-				t.Errorf("error = %v, want %q", got, tc.wantError)
+			if got := decodeJSON(t, rec)["error"]; got != tt.wantError {
+				t.Errorf("error = %v, want %q", got, tt.wantError)
 			}
 		})
 	}

@@ -7,7 +7,7 @@ import (
 )
 
 func TestToken(t *testing.T) {
-	cases := []struct {
+	tests := []struct {
 		name   string
 		header string
 		want   string
@@ -20,15 +20,15 @@ func TestToken(t *testing.T) {
 		{"別の scheme", "Basic abc", "", false},
 		{"要素が多すぎる", "Bearer abc def", "", false},
 	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			r := httptest.NewRequest(http.MethodGet, "/", nil)
-			if tc.header != "" {
-				r.Header.Set(bearerHeader, tc.header)
+			if tt.header != "" {
+				r.Header.Set(bearerHeader, tt.header)
 			}
 			got, ok := Token(r)
-			if got != tc.want || ok != tc.wantOK {
-				t.Errorf("Token() = %q, %v; want %q, %v", got, ok, tc.want, tc.wantOK)
+			if got != tt.want || ok != tt.wantOK {
+				t.Errorf("Token() = %q, %v; want %q, %v", got, ok, tt.want, tt.wantOK)
 			}
 		})
 	}

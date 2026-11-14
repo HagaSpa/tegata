@@ -81,7 +81,7 @@ func TestCodes(t *testing.T) {
 	})
 
 	t.Run("期限", func(t *testing.T) {
-		cases := []struct {
+		tests := []struct {
 			name    string
 			elapsed time.Duration
 			wantErr bool
@@ -90,17 +90,17 @@ func TestCodes(t *testing.T) {
 			{"5 分ちょうどは有効", 5 * time.Minute, false},
 			{"5 分 1 秒で失効", 5*time.Minute + time.Second, true},
 		}
-		for _, tc := range cases {
-			t.Run(tc.name, func(t *testing.T) {
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
 				s := newFixedCodes(t)
 				key := mustIssue(t, s, "u-0001")
-				advance(s, tc.elapsed)
+				advance(s, tt.elapsed)
 
 				_, err := s.Consume(key)
-				if tc.wantErr && !errors.Is(err, ErrInvalidCode) {
+				if tt.wantErr && !errors.Is(err, ErrInvalidCode) {
 					t.Errorf("Consume() error = %v, want ErrInvalidCode", err)
 				}
-				if !tc.wantErr && err != nil {
+				if !tt.wantErr && err != nil {
 					t.Errorf("Consume() error = %v, want nil", err)
 				}
 			})

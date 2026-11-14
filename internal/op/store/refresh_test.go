@@ -146,7 +146,7 @@ func TestRefreshTokens(t *testing.T) {
 	})
 
 	t.Run("期限", func(t *testing.T) {
-		cases := []struct {
+		tests := []struct {
 			name    string
 			elapsed time.Duration
 			wantErr bool
@@ -155,17 +155,17 @@ func TestRefreshTokens(t *testing.T) {
 			{"30 日ちょうどは有効", 30 * day, false},
 			{"30 日 1 秒で失効", 30*day + time.Second, true},
 		}
-		for _, tc := range cases {
-			t.Run(tc.name, func(t *testing.T) {
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
 				s := newFixedRefreshTokens(t)
 				key := s.Issue("client-1", "u-0001", "openid offline_access")
-				advanceRefresh(s, tc.elapsed)
+				advanceRefresh(s, tt.elapsed)
 
 				_, _, err := s.Rotate(key, "client-1")
-				if tc.wantErr && !errors.Is(err, ErrInvalidRefreshToken) {
+				if tt.wantErr && !errors.Is(err, ErrInvalidRefreshToken) {
 					t.Errorf("Rotate() error = %v, want ErrInvalidRefreshToken", err)
 				}
-				if !tc.wantErr && err != nil {
+				if !tt.wantErr && err != nil {
 					t.Errorf("Rotate() error = %v, want nil", err)
 				}
 			})

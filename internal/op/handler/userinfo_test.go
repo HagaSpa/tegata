@@ -51,7 +51,7 @@ func TestUserInfoHandler_Get_Errors(t *testing.T) {
 	const invalidToken = `Bearer error="invalid_token"`
 	h, km := newUserInfoHandler(t)
 
-	cases := []struct {
+	tests := []struct {
 		name        string
 		header      string
 		editClaims  func(c *jwt.Claims)
@@ -67,12 +67,12 @@ func TestUserInfoHandler_Get_Errors(t *testing.T) {
 		{name: "sub が存在しない", editClaims: func(c *jwt.Claims) { c.Sub = "u-9999" }, wantWWWAuth: invalidToken},
 	}
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			header := tc.header
-			if tc.editClaims != nil {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			header := tt.header
+			if tt.editClaims != nil {
 				c := accessClaims("openid")
-				tc.editClaims(c)
+				tt.editClaims(c)
 				header = "Bearer " + signToken(t, km, c)
 			}
 
@@ -80,8 +80,8 @@ func TestUserInfoHandler_Get_Errors(t *testing.T) {
 			if rec.Code != http.StatusUnauthorized {
 				t.Errorf("status = %d, want 401 (body %q)", rec.Code, rec.Body.String())
 			}
-			if got := rec.Header().Get("WWW-Authenticate"); got != tc.wantWWWAuth {
-				t.Errorf("WWW-Authenticate = %q, want %q", got, tc.wantWWWAuth)
+			if got := rec.Header().Get("WWW-Authenticate"); got != tt.wantWWWAuth {
+				t.Errorf("WWW-Authenticate = %q, want %q", got, tt.wantWWWAuth)
 			}
 		})
 	}

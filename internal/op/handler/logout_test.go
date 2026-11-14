@@ -51,7 +51,7 @@ func newLogoutRequest(method string, params url.Values, sessionKey string) *http
 }
 
 func TestLogoutHandler_Redirect(t *testing.T) {
-	cases := []struct {
+	tests := []struct {
 		name         string
 		method       string
 		state        string
@@ -62,25 +62,25 @@ func TestLogoutHandler_Redirect(t *testing.T) {
 		{"POST で state あり", http.MethodPost, testState, testPostLogoutRedirectURI + "?state=" + testState},
 	}
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			h, km, ss := newLogoutHandler(t)
 			key := ss.Save("u-0001", time.Now())
 
 			params := url.Values{}
 			params.Set("id_token_hint", signToken(t, km, idTokenClaims(testIssuer)))
 			params.Set("post_logout_redirect_uri", testPostLogoutRedirectURI)
-			if tc.state != "" {
-				params.Set("state", tc.state)
+			if tt.state != "" {
+				params.Set("state", tt.state)
 			}
 			rec := httptest.NewRecorder()
-			h.ServeHTTP(rec, newLogoutRequest(tc.method, params, key))
+			h.ServeHTTP(rec, newLogoutRequest(tt.method, params, key))
 
 			if rec.Code != http.StatusFound {
 				t.Fatalf("status = %d, want %d, body = %q", rec.Code, http.StatusFound, rec.Body.String())
 			}
-			if got := rec.Header().Get("Location"); got != tc.wantLocation {
-				t.Errorf("Location = %q, want %q", got, tc.wantLocation)
+			if got := rec.Header().Get("Location"); got != tt.wantLocation {
+				t.Errorf("Location = %q, want %q", got, tt.wantLocation)
 			}
 			if _, err := ss.Get(key); !errors.Is(err, store.ErrInvalidSession) {
 				t.Errorf("Sessions.Get() error = %v, want store.ErrInvalidSession", err)

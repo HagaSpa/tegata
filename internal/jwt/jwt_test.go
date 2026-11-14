@@ -146,7 +146,7 @@ func TestVerify(t *testing.T) {
 		noneHeader := encodeSegment(t, map[string]any{"alg": "none", "kid": testKid})
 		noKidHeader := encodeSegment(t, map[string]any{"alg": "RS256"})
 
-		cases := []struct {
+		tests := []struct {
 			name    string
 			token   string
 			keyFor  KeyFunc
@@ -161,14 +161,14 @@ func TestVerify(t *testing.T) {
 			{"kid が無い", noKidHeader + "." + valid.payload + "." + valid.signature, keyFor(key), nil},
 			{"exp ちょうどで失効", expired.String(), keyFor(key), ErrExpired},
 		}
-		for _, tc := range cases {
-			t.Run(tc.name, func(t *testing.T) {
-				got, err := Verify(tc.token, tc.keyFor, testBase)
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				got, err := Verify(tt.token, tt.keyFor, testBase)
 				if err == nil {
 					t.Fatalf("Verify() = %+v, want error", got)
 				}
-				if tc.wantErr != nil && !errors.Is(err, tc.wantErr) {
-					t.Errorf("Verify() error = %v, want %v", err, tc.wantErr)
+				if tt.wantErr != nil && !errors.Is(err, tt.wantErr) {
+					t.Errorf("Verify() error = %v, want %v", err, tt.wantErr)
 				}
 			})
 		}

@@ -144,7 +144,7 @@ func TestAuthorizeRequests(t *testing.T) {
 			{"Find", (*AuthorizeRequests).Find},
 			{"FindAndDelete", (*AuthorizeRequests).FindAndDelete},
 		}
-		cases := []struct {
+		tests := []struct {
 			name    string
 			elapsed time.Duration
 			wantErr bool
@@ -154,17 +154,17 @@ func TestAuthorizeRequests(t *testing.T) {
 			{"10 分 1 秒で失効", 10*time.Minute + time.Second, true},
 		}
 		for _, l := range lookups {
-			for _, tc := range cases {
-				t.Run(l.name+"/"+tc.name, func(t *testing.T) {
+			for _, tt := range tests {
+				t.Run(l.name+"/"+tt.name, func(t *testing.T) {
 					s := newFixedAuthorizeRequests(t)
 					key := mustSave(t, s, validAuthorizeRequest())
-					advanceAuthorize(s, tc.elapsed)
+					advanceAuthorize(s, tt.elapsed)
 
 					_, err := l.call(s, key)
-					if tc.wantErr && !errors.Is(err, ErrAuthorizeRequestNotFound) {
+					if tt.wantErr && !errors.Is(err, ErrAuthorizeRequestNotFound) {
 						t.Errorf("%s() error = %v, want ErrAuthorizeRequestNotFound", l.name, err)
 					}
-					if !tc.wantErr && err != nil {
+					if !tt.wantErr && err != nil {
 						t.Errorf("%s() error = %v, want nil", l.name, err)
 					}
 				})

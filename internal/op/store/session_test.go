@@ -60,7 +60,7 @@ func TestSessions(t *testing.T) {
 	})
 
 	t.Run("期限", func(t *testing.T) {
-		cases := []struct {
+		tests := []struct {
 			name    string
 			elapsed time.Duration
 			wantErr bool
@@ -69,14 +69,14 @@ func TestSessions(t *testing.T) {
 			{"10 時間ちょうどは有効", SessionTTL, false},
 			{"10 時間 1 秒で失効", SessionTTL + time.Second, true},
 		}
-		for _, tc := range cases {
-			t.Run(tc.name, func(t *testing.T) {
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
 				s := newFixedSessions(t)
 				key := s.Save("u-0001", s.now())
-				advanceSession(s, tc.elapsed)
+				advanceSession(s, tt.elapsed)
 
 				got, err := s.Get(key)
-				if tc.wantErr {
+				if tt.wantErr {
 					if !errors.Is(err, ErrInvalidSession) {
 						t.Errorf("Get() error = %v, want ErrInvalidSession", err)
 					}
@@ -84,7 +84,7 @@ func TestSessions(t *testing.T) {
 						t.Errorf("Get() = %+v, want nil", got)
 					}
 				}
-				if !tc.wantErr && err != nil {
+				if !tt.wantErr && err != nil {
 					t.Errorf("Get() error = %v, want nil", err)
 				}
 			})
