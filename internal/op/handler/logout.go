@@ -58,7 +58,7 @@ func (h *LogoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	hint := r.Form.Get("id_token_hint")
 	if hint == "" {
-		render(h.confirmFile, w, &templateParam{Error: "no exist id_token_hint"}, http.StatusBadRequest)
+		render(h.confirmFile, w, nil, http.StatusOK)
 		return
 	}
 
@@ -93,13 +93,13 @@ func (h *LogoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	key, err := sessionKey(r)
 	if err != nil {
-		render(h.confirmFile, w, &templateParam{Error: "session_id is required"}, http.StatusBadRequest)
+		render(h.confirmFile, w, nil, http.StatusOK)
 		return
 	}
 
 	session, err := h.session.Get(key)
 	if err != nil || session.Sub != claims.Sub {
-		render(h.confirmFile, w, &templateParam{Error: "invalid session_id"}, http.StatusBadRequest)
+		render(h.confirmFile, w, nil, http.StatusOK)
 		return
 	}
 
