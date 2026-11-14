@@ -141,7 +141,7 @@ func TestLogoutHandler_Post_Error(t *testing.T) {
 		key := ss.Save("u-0001", time.Now())
 
 		params := url.Values{}
-		params.Set("id_token_hint", signToken(t, km, idTokenClaims("testIssuer")))
+		params.Set("id_token_hint", signToken(t, km, idTokenClaims(testIssuer)))
 		params.Set("post_logout_redirect_uri", testPostLogoutRedirectURI)
 		params.Set("state", testState)
 		params.Set("client_id", "unknown_client_id")
@@ -158,7 +158,7 @@ func TestLogoutHandler_Post_Error(t *testing.T) {
 		key := ss.Save("u-0001", time.Now())
 
 		params := url.Values{}
-		params.Set("id_token_hint", signToken(t, km, idTokenClaims("testIssuer")))
+		params.Set("id_token_hint", signToken(t, km, idTokenClaims(testIssuer)))
 		params.Set("post_logout_redirect_uri", testPostLogoutRedirectURI)
 		params.Set("state", testState)
 		params.Set("post_logout_redirect_uri", "unknown_post_logout_redirect_uri")
