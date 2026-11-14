@@ -27,6 +27,7 @@ func render(
 	var buf bytes.Buffer
 	if err := f.Execute(&buf, p); err != nil {
 		writeInternalError(w)
+		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
