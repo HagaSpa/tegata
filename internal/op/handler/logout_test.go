@@ -50,7 +50,7 @@ func newLogoutRequest(method string, params url.Values, sessionKey string) *http
 	return req
 }
 
-func TestLogoutHandler_Redirect(t *testing.T) {
+func TestLogoutHandler_ServeHTTP_Redirect(t *testing.T) {
 	tests := []struct {
 		name         string
 		method       string
@@ -102,7 +102,7 @@ func TestLogoutHandler_Redirect(t *testing.T) {
 	}
 }
 
-func TestLogoutHandler_Post_Error(t *testing.T) {
+func TestLogoutHandler_ServeHTTP_Post_Error(t *testing.T) {
 	h, km, ss := newLogoutHandler(t)
 
 	tests := []struct {
