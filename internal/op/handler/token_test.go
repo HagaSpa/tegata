@@ -76,26 +76,6 @@ func postToken(h *TokenHandler, f url.Values, basic bool) *httptest.ResponseReco
 	return rec
 }
 
-func cloneValues(v url.Values) url.Values {
-	c := url.Values{}
-	for k, vs := range v {
-		c[k] = append([]string(nil), vs...)
-	}
-	return c
-}
-
-func decodeJSON(t *testing.T, rec *httptest.ResponseRecorder) map[string]any {
-	t.Helper()
-	if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
-		t.Errorf("Content-Type = %q, want application/json", ct)
-	}
-	var body map[string]any
-	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
-		t.Fatalf("body is not JSON: %v (%q)", err, rec.Body.String())
-	}
-	return body
-}
-
 func decodePayload(t *testing.T, token string) map[string]any {
 	t.Helper()
 	parts := strings.Split(token, ".")

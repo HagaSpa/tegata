@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -12,10 +11,6 @@ import (
 	"github.com/HagaSpa/tegata/internal/op/registry"
 	"github.com/HagaSpa/tegata/internal/op/store"
 )
-
-const testState = "state-1"
-
-var hiddenIDPattern = regexp.MustCompile(`name="id" value="([A-Za-z0-9_-]{43})"`)
 
 func newAuthorizeHandler(t *testing.T) (*AuthorizeHandler, *store.AuthorizeRequests, *store.Sessions, *store.Codes) {
 	t.Helper()
@@ -25,38 +20,6 @@ func newAuthorizeHandler(t *testing.T) (*AuthorizeHandler, *store.AuthorizeReque
 	co := store.NewCodes()
 	h := NewAuthorizeHandler(cl, ar, ss, co)
 	return h, ar, ss, co
-}
-
-func validAuthorizeQuery() url.Values {
-	q := url.Values{}
-	q.Set("client_id", "tegata-sample")
-	q.Set("redirect_uri", "http://localhost:9999/callback")
-	q.Set("response_type", "code")
-	q.Set("scope", "openid")
-	q.Set("state", testState)
-	q.Set("nonce", "n")
-	q.Set("code_challenge", "x")
-	q.Set("code_challenge_method", "S256")
-	return q
-}
-
-func saveRequest(t *testing.T, reqs *store.AuthorizeRequests, editRequest func(r *store.AuthorizeRequest)) string {
-	t.Helper()
-	req := parseAuthorizeRequest(validAuthorizeQuery())
-	if editRequest != nil {
-		editRequest(req)
-	}
-	id := reqs.Save(req)
-	return id
-}
-
-func loginForm(id string) url.Values {
-	f := url.Values{}
-	f.Set("id", id)
-	f.Set("username", "username")
-	f.Set("password", "password")
-	f.Set("action", "approve")
-	return f
 }
 
 func getAuthorize(h *AuthorizeHandler, q url.Values, cookies ...*http.Cookie) *httptest.ResponseRecorder {
@@ -78,42 +41,6 @@ func postAuthorize(h *AuthorizeHandler, f url.Values, cookies ...*http.Cookie) *
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	return rec
-}
-
-func idFromBody(t *testing.T, body string) string {
-	t.Helper()
-	m := hiddenIDPattern.FindStringSubmatch(body)
-	if m == nil {
-		t.Fatalf("body does not carry id as hidden input: %q", body)
-	}
-	return m[1]
-}
-
-func redirectQuery(t *testing.T, rec *httptest.ResponseRecorder) url.Values {
-	t.Helper()
-	if rec.Code != http.StatusFound {
-		t.Fatalf("status = %d, want 302 (body %q)", rec.Code, rec.Body.String())
-	}
-	loc, err := url.Parse(rec.Header().Get("Location"))
-	if err != nil {
-		t.Fatalf("Location %q is not a URL: %v", rec.Header().Get("Location"), err)
-	}
-	q := loc.Query()
-	loc.RawQuery = ""
-	if got, want := loc.String(), "http://localhost:9999/callback"; got != want {
-		t.Errorf("redirect target = %q, want %q", got, want)
-	}
-	return q
-}
-
-func assertBadRequest(t *testing.T, rec *httptest.ResponseRecorder) {
-	t.Helper()
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("status = %d, want 400 (body %q)", rec.Code, rec.Body.String())
-	}
-	if loc := rec.Header().Get("Location"); loc != "" {
-		t.Errorf("Location = %q, want empty (must not redirect)", loc)
-	}
 }
 
 var authorizeSenders = []struct {

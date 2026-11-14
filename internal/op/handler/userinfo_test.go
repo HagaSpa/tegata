@@ -25,15 +25,6 @@ func newUserInfoHandler(t *testing.T) (*UserInfoHandler, *keys.Manager) {
 	return NewUserInfofHandler(km, us, testIssuer), km
 }
 
-func signToken(t *testing.T, km *keys.Manager, claim *jwt.Claims) string {
-	t.Helper()
-	tok, err := km.Sign(claim)
-	if err != nil {
-		t.Fatalf("Manager.Sign() failed: %v", err)
-	}
-	return tok.String()
-}
-
 func getUserInfo(h *UserInfoHandler, authorization string) *httptest.ResponseRecorder {
 	req := httptest.NewRequest(http.MethodGet, "/userinfo", nil)
 	rec := httptest.NewRecorder()

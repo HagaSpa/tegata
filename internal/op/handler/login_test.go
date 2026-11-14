@@ -7,37 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/HagaSpa/tegata/internal/op/registry"
 	"github.com/HagaSpa/tegata/internal/op/store"
 )
-
-func newLoginHandler(t *testing.T) (*LoginHandler, *store.AuthorizeRequests, *store.Codes) {
-	t.Helper()
-	cl := registry.NewClients()
-	u, err := registry.NewUsers(
-		"username",
-		"password",
-		"u-0001",
-		"hagaspa",
-		"justicesparrow13@gmail.com",
-	)
-	if err != nil {
-		t.Fatal("failed initilize")
-	}
-	co := store.NewCodes()
-	ar := store.NewAuthorizeRequests()
-	ss := store.NewSessions()
-	h := NewLoginHandler(cl, u, co, ar, ss)
-	return h, ar, co
-}
-
-func postLogin(h *LoginHandler, f url.Values) *httptest.ResponseRecorder {
-	req := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(f.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	rec := httptest.NewRecorder()
-	h.Post(rec, req)
-	return rec
-}
 
 func assertNoCookie(t *testing.T, rec *httptest.ResponseRecorder) {
 	t.Helper()
