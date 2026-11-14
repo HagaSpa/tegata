@@ -120,7 +120,7 @@ func TestLogoutHandler_Post_Error(t *testing.T) {
 		}
 	})
 
-	t.Run("POST hint から復号した claims の iss と、issuer が一致しない", func(t *testing.T) {
+	t.Run("hint から復号した claims の iss と、issuer が一致しない", func(t *testing.T) {
 		h, km, ss := newLogoutHandler(t)
 		key := ss.Save("u-0001", time.Now())
 
@@ -136,7 +136,7 @@ func TestLogoutHandler_Post_Error(t *testing.T) {
 		}
 	})
 
-	t.Run("POST client_id が送られてきた時に、それが claims の aud に存在しない", func(t *testing.T) {
+	t.Run("client_id が送られてきた時に、それが claims の aud に存在しない", func(t *testing.T) {
 		h, km, ss := newLogoutHandler(t)
 		key := ss.Save("u-0001", time.Now())
 
@@ -153,7 +153,7 @@ func TestLogoutHandler_Post_Error(t *testing.T) {
 		}
 	})
 
-	t.Run("POST post_logout_redirect_uri が送られてきた時に、それが Client に登録されていない ", func(t *testing.T) {
+	t.Run("post_logout_redirect_uri が送られてきた時に、それが Client に登録されていない ", func(t *testing.T) {
 		h, km, ss := newLogoutHandler(t)
 		key := ss.Save("u-0001", time.Now())
 
