@@ -103,94 +103,68 @@ func TestLogoutHandler_Redirect(t *testing.T) {
 }
 
 func TestLogoutHandler_Post_Error(t *testing.T) {
-	t.Run("id_token_hint の検証に失敗", func(t *testing.T) {
-		h, km, ss := newLogoutHandler(t)
-		key := ss.Save("u-0001", time.Now())
-		_ = signToken(t, km, idTokenClaims(testIssuer))
+	h, km, ss := newLogoutHandler(t)
 
-		params := url.Values{}
-		params.Set("id_token_hint", "unknown_id_token_hint")
-		params.Set("post_logout_redirect_uri", testPostLogoutRedirectURI)
-		params.Set("state", testState)
-		rec := httptest.NewRecorder()
-		h.ServeHTTP(rec, newLogoutRequest(http.MethodPost, params, key))
+	tests := []struct {
+		name                  string
+		idTokenHint           string
+		clientID              string
+		postLogoutRedirectURI string
+	}{
+		{
+			name:                  "id_token_hint の検証に失敗",
+			idTokenHint:           "unknown_id_token_hint",
+			clientID:              "",
+			postLogoutRedirectURI: testPostLogoutRedirectURI,
+		},
+		{
+			name:                  "hint から復号した claims の iss と、issuer が一致しない",
+			idTokenHint:           signToken(t, km, idTokenClaims("http:://evil")),
+			clientID:              "",
+			postLogoutRedirectURI: testPostLogoutRedirectURI,
+		},
+		{
+			name:                  "client_id が送られてきた時に、それが claims の aud に存在しない",
+			idTokenHint:           signToken(t, km, idTokenClaims(testIssuer)),
+			clientID:              "unknown_client_id",
+			postLogoutRedirectURI: testPostLogoutRedirectURI,
+		},
+		{
+			name:                  "post_logout_redirect_uri が送られてきた時に、それが Client に登録されていない",
+			idTokenHint:           signToken(t, km, idTokenClaims(testIssuer)),
+			clientID:              "",
+			postLogoutRedirectURI: "unknown_post_logout_redirect_uri",
+		},
+	}
 
-		if rec.Code != http.StatusBadRequest {
-			t.Errorf("When get unknown id_token_hint, res.Code must be StatusBadRequest")
-		}
-		if got := rec.Header().Get("Location"); got != "" {
-			t.Errorf("Location = %q, want empty", got)
-		}
-		if _, err := ss.Get(key); err != nil {
-			t.Errorf("Sessions.Get() error = %v", err)
-		}
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			key := ss.Save("u-0001", time.Now())
+			params := url.Values{}
+			params.Set("state", testState)
 
-	t.Run("hint から復号した claims の iss と、issuer が一致しない", func(t *testing.T) {
-		h, km, ss := newLogoutHandler(t)
-		key := ss.Save("u-0001", time.Now())
+			if tt.idTokenHint != "" {
+				params.Set("id_token_hint", tt.idTokenHint)
+			}
+			if tt.clientID != "" {
+				params.Set("client_id", tt.clientID)
+			}
+			if tt.postLogoutRedirectURI != "" {
+				params.Set("post_logout_redirect_uri", tt.postLogoutRedirectURI)
+			}
 
-		params := url.Values{}
-		params.Set("id_token_hint", signToken(t, km, idTokenClaims("unkonwnIssuer")))
-		params.Set("post_logout_redirect_uri", testPostLogoutRedirectURI)
-		params.Set("state", testState)
-		rec := httptest.NewRecorder()
-		h.ServeHTTP(rec, newLogoutRequest(http.MethodPost, params, key))
+			rec := httptest.NewRecorder()
+			h.ServeHTTP(rec, newLogoutRequest(http.MethodPost, params, key))
 
-		if rec.Code != http.StatusBadRequest {
-			t.Errorf("When iss and issuer not matched, res.Code must be StatusBadRequest")
-		}
-		if got := rec.Header().Get("Location"); got != "" {
-			t.Errorf("Location = %q, want empty", got)
-		}
-		if _, err := ss.Get(key); err != nil {
-			t.Errorf("Sessions.Get() error = %v", err)
-		}
-	})
-
-	t.Run("client_id が送られてきた時に、それが claims の aud に存在しない", func(t *testing.T) {
-		h, km, ss := newLogoutHandler(t)
-		key := ss.Save("u-0001", time.Now())
-
-		params := url.Values{}
-		params.Set("id_token_hint", signToken(t, km, idTokenClaims(testIssuer)))
-		params.Set("post_logout_redirect_uri", testPostLogoutRedirectURI)
-		params.Set("state", testState)
-		params.Set("client_id", "unknown_client_id")
-		rec := httptest.NewRecorder()
-		h.ServeHTTP(rec, newLogoutRequest(http.MethodPost, params, key))
-
-		if rec.Code != http.StatusBadRequest {
-			t.Errorf("When get unknown client_id, res.Code must be StatusBadRequest")
-		}
-		if got := rec.Header().Get("Location"); got != "" {
-			t.Errorf("Location = %q, want empty", got)
-		}
-		if _, err := ss.Get(key); err != nil {
-			t.Errorf("Sessions.Get() error = %v", err)
-		}
-	})
-
-	t.Run("post_logout_redirect_uri が送られてきた時に、それが Client に登録されていない ", func(t *testing.T) {
-		h, km, ss := newLogoutHandler(t)
-		key := ss.Save("u-0001", time.Now())
-
-		params := url.Values{}
-		params.Set("id_token_hint", signToken(t, km, idTokenClaims(testIssuer)))
-		params.Set("post_logout_redirect_uri", testPostLogoutRedirectURI)
-		params.Set("state", testState)
-		params.Set("post_logout_redirect_uri", "unknown_post_logout_redirect_uri")
-		rec := httptest.NewRecorder()
-		h.ServeHTTP(rec, newLogoutRequest(http.MethodPost, params, key))
-
-		if rec.Code != http.StatusBadRequest {
-			t.Errorf("When get unknown post_logout_redirect_uri, res.Code must be StatusBadRequest")
-		}
-		if got := rec.Header().Get("Location"); got != "" {
-			t.Errorf("Location = %q, want empty", got)
-		}
-		if _, err := ss.Get(key); err != nil {
-			t.Errorf("Sessions.Get() error = %v", err)
-		}
-	})
+			if rec.Code != http.StatusBadRequest {
+				t.Errorf("When get unknown id_token_hint, res.Code must be StatusBadRequest")
+			}
+			if got := rec.Header().Get("Location"); got != "" {
+				t.Errorf("Location = %q, want empty", got)
+			}
+			if _, err := ss.Get(key); err != nil {
+				t.Errorf("Sessions.Get() error = %v", err)
+			}
+		})
+	}
 }
