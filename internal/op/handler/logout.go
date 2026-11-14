@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"html/template"
 	"net/http"
 	"net/url"
 
@@ -26,6 +27,7 @@ type LogoutHandler struct {
 	validator PostLogoutRedirectURIValidator
 	session   SessionGetDeleter
 	issuer    string
+	file      *template.Template
 }
 
 func NewLogoutHandler(
@@ -34,11 +36,13 @@ func NewLogoutHandler(
 	session SessionGetDeleter,
 	issuer string,
 ) *LogoutHandler {
+	f := template.Must(template.ParseFS(htmlFS, "logout.html"))
 	return &LogoutHandler{
 		verifier:  verifier,
 		validator: validator,
 		session:   session,
 		issuer:    issuer,
+		file:      f,
 	}
 }
 
@@ -57,20 +61,28 @@ func (h *LogoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	claims, err := h.verifier.VerifySignature(hint)
 	if err != nil {
-		http.Error(w, "invalid id_token_hint", http.StatusBadRequest)
+		render(h.file, w, &templateParam{Error: "id_token_hint is invalid"}, http.StatusBadRequest)
 		return
 	}
 
 	if claims.Iss != h.issuer {
-		http.Error(w, "invalid id_token_hint", http.StatusBadRequest)
+		render(h.file, w, &templateParam{Error: "id_token_hint was not issued by this OP"}, http.StatusBadRequest)
 		return
+	}
+
+	clientID := r.Form.Get("client_id")
+	hasCliendID := clientID != ""
+	if hasCliendID {
+		if !claims.Aud.Contains(clientID) {
+			render(h.file, w, &templateParam{Error: "client_id does not match id_token_hint"}, http.StatusBadRequest)
+		}
 	}
 
 	uri := r.Form.Get("post_logout_redirect_uri")
 	hasURI := uri != ""
 	if hasURI {
 		if !h.validator.ValidatePostLogoutRedirectURI(claims.Aud[0], uri) {
-			http.Error(w, "invalid post_logout_redirect_uri", http.StatusBadRequest)
+			render(h.file, w, &templateParam{Error: "post_logout_redirect_uri is not registered"}, http.StatusBadRequest)
 			return
 		}
 	}

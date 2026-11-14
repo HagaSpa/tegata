@@ -27,10 +27,10 @@ func newLogoutHandler(t *testing.T) (*LogoutHandler, *keys.Manager, *store.Sessi
 	return NewLogoutHandler(km, registry.NewClients(), ss, testIssuer), km, ss
 }
 
-func idTokenClaims() *jwt.Claims {
+func idTokenClaims(issuer string) *jwt.Claims {
 	now := time.Now()
 	return &jwt.Claims{
-		Iss: testIssuer,
+		Iss: issuer,
 		Sub: "u-0001",
 		Aud: jwt.Audience{"conformance"},
 		Iat: now.Unix(),
@@ -68,7 +68,7 @@ func TestLogoutHandler_Redirect(t *testing.T) {
 			key := ss.Save("u-0001", time.Now())
 
 			params := url.Values{}
-			params.Set("id_token_hint", signToken(t, km, idTokenClaims()))
+			params.Set("id_token_hint", signToken(t, km, idTokenClaims(testIssuer)))
 			params.Set("post_logout_redirect_uri", testPostLogoutRedirectURI)
 			if tc.state != "" {
 				params.Set("state", tc.state)
@@ -100,4 +100,73 @@ func TestLogoutHandler_Redirect(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestLogoutHandler_Post_Error(t *testing.T) {
+	t.Run("id_token_hint の検証に失敗", func(t *testing.T) {
+		h, km, ss := newLogoutHandler(t)
+		key := ss.Save("u-0001", time.Now())
+		_ = signToken(t, km, idTokenClaims(testIssuer))
+
+		params := url.Values{}
+		params.Set("id_token_hint", "unknown_id_token_hint")
+		params.Set("post_logout_redirect_uri", testPostLogoutRedirectURI)
+		params.Set("state", testState)
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, newLogoutRequest(http.MethodPost, params, key))
+
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("When get unknown id_token_hint, res.Code must be StatusBadRequest")
+		}
+	})
+
+	t.Run("POST hint から復号した claims の iss と、issuer が一致しない", func(t *testing.T) {
+		h, km, ss := newLogoutHandler(t)
+		key := ss.Save("u-0001", time.Now())
+
+		params := url.Values{}
+		params.Set("id_token_hint", signToken(t, km, idTokenClaims("unkonwnIssuer")))
+		params.Set("post_logout_redirect_uri", testPostLogoutRedirectURI)
+		params.Set("state", testState)
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, newLogoutRequest(http.MethodPost, params, key))
+
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("When iss and issuer not matched, res.Code must be StatusBadRequest")
+		}
+	})
+
+	t.Run("POST client_id が送られてきた時に、それが claims の aud に存在しない", func(t *testing.T) {
+		h, km, ss := newLogoutHandler(t)
+		key := ss.Save("u-0001", time.Now())
+
+		params := url.Values{}
+		params.Set("id_token_hint", signToken(t, km, idTokenClaims("testIssuer")))
+		params.Set("post_logout_redirect_uri", testPostLogoutRedirectURI)
+		params.Set("state", testState)
+		params.Set("client_id", "unknown_client_id")
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, newLogoutRequest(http.MethodPost, params, key))
+
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("When get unknown client_id, res.Code must be StatusBadRequest")
+		}
+	})
+
+	t.Run("POST post_logout_redirect_uri が送られてきた時に、それが Client に登録されていない ", func(t *testing.T) {
+		h, km, ss := newLogoutHandler(t)
+		key := ss.Save("u-0001", time.Now())
+
+		params := url.Values{}
+		params.Set("id_token_hint", signToken(t, km, idTokenClaims("testIssuer")))
+		params.Set("post_logout_redirect_uri", testPostLogoutRedirectURI)
+		params.Set("state", testState)
+		params.Set("post_logout_redirect_uri", "unknown_post_logout_redirect_uri")
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, newLogoutRequest(http.MethodPost, params, key))
+
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("When get unknown post_logout_redirect_uri, res.Code must be StatusBadRequest")
+		}
+	})
 }
