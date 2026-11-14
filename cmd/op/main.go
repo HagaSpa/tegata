@@ -77,7 +77,7 @@ func main() {
 	mux.HandleFunc("POST /revoke", revokeHandler.Post)
 	mux.HandleFunc("GET /register", registerHandler.Get)
 	mux.HandleFunc("POST /register", registerHandler.Post)
-	mux.HandleFunc("POST /logout/confirm.html", registerHandler.Post)
+	mux.HandleFunc("POST /logout/confirm", logoutHandler.Post)
 
 	fmt.Println("Serving on :8080...")
 
