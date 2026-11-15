@@ -69,6 +69,9 @@ func TestLoginHandler_Post(t *testing.T) {
 				if !cookies[0].HttpOnly {
 					t.Errorf("session_id must be HttpOnly: %v", cookies[0])
 				}
+				if cookies[0].SameSite != http.SameSiteLaxMode {
+					t.Errorf("SameSite must be http.SameSiteLaxMode: %v", cookies[0])
+				}
 				if cookies[0].MaxAge != int(store.SessionTTL.Seconds()) {
 					t.Errorf("session.MaxAge must be store.SessionTTL.Seconds(), session.MaxAge: %d", cookies[0].MaxAge)
 				}
