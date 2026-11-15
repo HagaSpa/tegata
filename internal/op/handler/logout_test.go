@@ -105,6 +105,47 @@ func TestLogoutHandler_ServeHTTP_Redirect(t *testing.T) {
 	}
 }
 
+func TestLogoutHandler_ServeHTTP_WithoutRedirectURI(t *testing.T) {
+	t.Run("正しい hint と保存されてる Cookie を受け取り、post_logout_redirect_uri がない場合", func(t *testing.T) {
+		h, km, ss := newLogoutHandler(t)
+		key := ss.Save("u-0001", time.Now())
+
+		params := url.Values{}
+		params.Set("id_token_hint", signToken(t, km, idTokenClaims(testIssuer)))
+		params.Set("state", testState)
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, newLogoutRequest(http.MethodPost, params, key))
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want %d, body = %q", rec.Code, http.StatusOK, rec.Body.String())
+		}
+		if got := rec.Header().Get("Location"); got != "" {
+			t.Errorf("Location = %q, want empty", got)
+		}
+		if _, err := ss.Get(key); !errors.Is(err, store.ErrInvalidSession) {
+			t.Errorf("Sessions.Get() error = %v, want store.ErrInvalidSession", err)
+		}
+
+		var deleted *http.Cookie
+		for _, c := range rec.Result().Cookies() {
+			if c.Name == "session_id" {
+				deleted = c
+			}
+		}
+		if deleted == nil {
+			t.Fatal("Set-Cookie for session_id is missing")
+		}
+		if deleted.MaxAge >= 0 || deleted.Path != "/" || deleted.Value != "" {
+			t.Errorf("Set-Cookie = %q, want empty value, Path=/ and Max-Age=0", deleted.String())
+		}
+
+		// logout.html
+		if !bytes.Contains(rec.Body.Bytes(), []byte("Logout Success.")) {
+			t.Error("html element not found")
+		}
+	})
+}
+
 func TestLogoutHandler_ServeHTTP_Error(t *testing.T) {
 	h, km, ss := newLogoutHandler(t)
 
