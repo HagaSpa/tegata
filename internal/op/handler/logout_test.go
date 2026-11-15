@@ -168,6 +168,11 @@ func TestLogoutHandler_ServeHTTP_Error(t *testing.T) {
 			if _, err := ss.Get(key); err != nil {
 				t.Errorf("Sessions.Get() error = %v", err)
 			}
+
+			// logout.html
+			if !bytes.Contains(rec.Body.Bytes(), []byte("<title>Tegata Logout Executed</title>")) {
+				t.Error("html element not found")
+			}
 		})
 	}
 }
