@@ -46,7 +46,9 @@ func newLogoutRequest(method string, params url.Values, sessionKey string) *http
 	} else {
 		req = httptest.NewRequest(method, "/logout?"+params.Encode(), nil)
 	}
-	req.AddCookie(&http.Cookie{Name: "session_id", Value: sessionKey})
+	if sessionKey != "" {
+		req.AddCookie(&http.Cookie{Name: "session_id", Value: sessionKey})
+	}
 	return req
 }
 
