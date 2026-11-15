@@ -299,15 +299,8 @@ func TestLogoutHandler_Post(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var req *http.Request
-			req = httptest.NewRequest(http.MethodPost, "/logout_confirm", nil)
-			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-			if tt.cookieKey != "" {
-				req.AddCookie(&http.Cookie{Name: "session_id", Value: tt.cookieKey})
-			}
-
 			rec := httptest.NewRecorder()
-			h.Post(rec, req)
+			h.Post(rec, newLogoutRequest(http.MethodPost, nil, tt.cookieKey))
 
 			if rec.Code != http.StatusOK {
 				t.Errorf("status = %d, want %d", rec.Code, http.StatusOK)
