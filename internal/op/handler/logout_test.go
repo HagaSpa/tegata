@@ -238,3 +238,53 @@ func TestLogoutHandler_ServeHTTP_OK(t *testing.T) {
 		})
 	}
 }
+
+func TestLogoutHandler_Post(t *testing.T) {
+	h, _, ss := newLogoutHandler(t)
+	key := ss.Save("u-0001", time.Now())
+
+	tests := []struct {
+		name      string
+		cookieKey string
+	}{
+		{name: "Cookie あり", cookieKey: key},
+		{name: "Cookie なし", cookieKey: ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var req *http.Request
+			req = httptest.NewRequest(http.MethodPost, "/logout_confirm", nil)
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			if tt.cookieKey != "" {
+				req.AddCookie(&http.Cookie{Name: "session_id", Value: tt.cookieKey})
+			}
+
+			rec := httptest.NewRecorder()
+			h.Post(rec, req)
+
+			if rec.Code != http.StatusOK {
+				t.Errorf("status = %d, want %d", rec.Code, http.StatusOK)
+			}
+
+			if tt.cookieKey != "" {
+				if _, err := ss.Get(key); !errors.Is(err, store.ErrInvalidSession) {
+					t.Errorf("Sessions.Get() error = %v, want store.ErrInvalidSession", err)
+				}
+
+				var deleted *http.Cookie
+				cookies := rec.Result().Cookies()
+				if len(cookies) != 1 {
+					t.Fatal("Response.Cookies must be one sizes")
+				}
+				if cookies[0].Name != "session_id" {
+					t.Fatal("Set-Cookie for session_id is missing")
+				}
+				deleted = cookies[0]
+				if deleted.Value != "" {
+					t.Errorf("Cookie[session_id] must be empty")
+				}
+			}
+		})
+	}
+}
