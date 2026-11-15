@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"bytes"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -166,6 +167,68 @@ func TestLogoutHandler_ServeHTTP_Error(t *testing.T) {
 			}
 			if _, err := ss.Get(key); err != nil {
 				t.Errorf("Sessions.Get() error = %v", err)
+			}
+		})
+	}
+}
+
+func TestLogoutHandler_ServeHTTP_OK(t *testing.T) {
+	h, km, ss := newLogoutHandler(t)
+	key := ss.Save("u-0001", time.Now())
+	key2 := ss.Save("u-0002", time.Now())
+
+	tests := []struct {
+		name        string
+		idTokenHint string
+		cookieKey   string
+	}{
+		{
+			name:        "id_token_hint が空",
+			idTokenHint: "",
+			cookieKey:   key,
+		},
+		{
+			name:        "Cookie が空",
+			idTokenHint: signToken(t, km, idTokenClaims(testIssuer)),
+			cookieKey:   "",
+		},
+		{
+			name:        "Cookie のキーが store に存在しない",
+			idTokenHint: signToken(t, km, idTokenClaims(testIssuer)),
+			cookieKey:   "unknownCookieKey",
+		},
+		{
+			name:        "別のユーザのセッションキー",
+			idTokenHint: signToken(t, km, idTokenClaims(testIssuer)),
+			cookieKey:   key2,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			params := url.Values{}
+			params.Set("state", testState)
+			params.Set("post_logout_redirect_uri", testPostLogoutRedirectURI)
+
+			if tt.idTokenHint != "" {
+				params.Set("id_token_hint", tt.idTokenHint)
+			}
+			rec := httptest.NewRecorder()
+			h.ServeHTTP(rec, newLogoutRequest(http.MethodPost, params, tt.cookieKey))
+
+			if rec.Code != http.StatusOK {
+				t.Errorf("status = %d, want %d", rec.Code, http.StatusOK)
+			}
+			if got := rec.Header().Get("Location"); got != "" {
+				t.Errorf("Location = %q, want empty", got)
+			}
+			if _, err := ss.Get(key); err != nil {
+				t.Errorf("Sessions.Get() error = %v", err)
+			}
+
+			// logout_confirm.html
+			if !bytes.Contains(rec.Body.Bytes(), []byte("<title>Tegata Logout Confirm</title>")) {
+				t.Error("html element not found")
 			}
 		})
 	}
