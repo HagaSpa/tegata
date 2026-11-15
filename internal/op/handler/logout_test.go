@@ -104,7 +104,7 @@ func TestLogoutHandler_ServeHTTP_Redirect(t *testing.T) {
 	}
 }
 
-func TestLogoutHandler_ServeHTTP_Post_Error(t *testing.T) {
+func TestLogoutHandler_ServeHTTP_Error(t *testing.T) {
 	h, km, ss := newLogoutHandler(t)
 
 	tests := []struct {
