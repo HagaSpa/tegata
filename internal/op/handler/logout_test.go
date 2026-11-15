@@ -268,7 +268,12 @@ func TestLogoutHandler_ServeHTTP_OK(t *testing.T) {
 			if got := rec.Header().Get("Location"); got != "" {
 				t.Errorf("Location = %q, want empty", got)
 			}
+
+			// Don't delete the session yet.
 			if _, err := ss.Get(key); err != nil {
+				t.Errorf("Sessions.Get() error = %v", err)
+			}
+			if _, err := ss.Get(key2); err != nil {
 				t.Errorf("Sessions.Get() error = %v", err)
 			}
 
