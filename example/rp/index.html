@@ -2,36 +2,41 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Tegata Sample RP</title>
+    <link rel="stylesheet" href="/static/style.css">
 </head>
-<body>
-    <h2> Tegata Sample RP </h2>
-    <div align="center">
+<body class="rp">
+    <header>
+        <div class="inner">
+            <span class="brand">Tegata Sample RP</span>
+            <span class="role">Relying Party</span>
+        </div>
+    </header>
+    <main>
         {{if .Message}}
-        <p> {{.Message}} </p>
+        <p class="success">{{.Message}}</p>
         {{end}}
-        {{if .SignedIn}}
-        <p> You are signed in at this RP. <a href="/home"> Home </a> </p>
+        {{if .Error}}
+        <p class="error">{{.Error}}</p>
         {{end}}
-        <table border="1">
-            <tr>
-                <td>
-                    <form action="/login" method="get">
-                        <button type="submit"> Sign in with tegata </button>
-                    </form>
-                </td>
-                <td> Goes to the login page of tegata </td>
-            </tr>
-            <tr>
-                <td>
-                    <form action="/login" method="get">
-                        <input type="hidden" name="prompt" value="none">
-                        <button type="submit"> Sign in with prompt=none </button>
-                    </form>
-                </td>
-                <td> Signs in without the login page while the session at tegata is alive. Otherwise tegata returns login_required </td>
-            </tr>
-        </table>
-    </div>
+        <div class="card">
+            <h1>Sign in with tegata</h1>
+            <p>This sample client signs you in through tegata with the authorization code flow and PKCE.</p>
+            {{if .SignedIn}}
+            <p class="muted">You are already signed in at this RP. <a href="/home">Open the home page</a></p>
+            {{end}}
+            <div class="actions">
+                <form action="/login" method="get">
+                    <button type="submit">Sign in with tegata</button>
+                </form>
+                <form action="/login" method="get">
+                    <input type="hidden" name="prompt" value="none">
+                    <button type="submit" class="secondary">Sign in with prompt=none</button>
+                </form>
+            </div>
+            <p class="muted">prompt=none signs you in without the login page while your session at tegata is alive. Otherwise tegata returns login_required.</p>
+        </div>
+    </main>
 </body>
 </html>

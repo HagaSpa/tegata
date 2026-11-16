@@ -2,12 +2,23 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Tegata Sample RP Result</title>
+    <link rel="stylesheet" href="/static/style.css">
 </head>
-<body>
-    <h2> Tegata Sample RP </h2>
-    <h3> {{.Title}} </h3>
-    <pre>{{.Body}}</pre>
-    <p> <a href="{{.Back}}"> Back </a> </p>
+<body class="rp wide">
+    <header>
+        <div class="inner">
+            <span class="brand">Tegata Sample RP</span>
+            <span class="role">Relying Party</span>
+        </div>
+    </header>
+    <main>
+        <div class="card">
+            <h1>{{.Title}}</h1>
+            <pre>{{.Body}}</pre>
+            <p><a href="{{.Back}}">Back</a></p>
+        </div>
+    </main>
 </body>
 </html>
