@@ -1,6 +1,9 @@
 package handler
 
-import "net/http"
+import (
+	"net/http"
+	"net/url"
+)
 
 type ClientAuthenticator interface {
 	Authenticate(clientID, secret string) bool
@@ -12,11 +15,25 @@ func authenticateClient(
 	c ClientAuthenticator,
 ) (string, bool) {
 	clientID, secret, ok := r.BasicAuth()
-	if !ok {
+	unescapedFailed := false
+
+	if ok {
+		ueClientID, err := url.QueryUnescape(clientID)
+		if err != nil {
+			unescapedFailed = true
+		}
+		ueSecret, err := url.QueryUnescape(secret)
+		if err != nil {
+			unescapedFailed = true
+		}
+		clientID = ueClientID
+		secret = ueSecret
+	} else {
 		clientID = r.PostFormValue("client_id")
 		secret = r.PostFormValue("client_secret")
 	}
-	if !c.Authenticate(clientID, secret) {
+
+	if unescapedFailed || !c.Authenticate(clientID, secret) {
 		if ok {
 			w.Header().Set("WWW-Authenticate", "Basic realm=\"tegata\"")
 		}
