@@ -2,41 +2,44 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Tegata Login Page</title>
+    <link rel="stylesheet" href="/static/style.css">
 </head>
-<body>
-    <h2> Tegata OIDC Server </h2>
-    <div align="center">
-        {{if .Error}} Error occured. {{.Error}} {{end}}
-        {{if .Message}} {{.Message}} {{end}}
-        <form action="/login" method="post">
-            <input type="hidden" name="id" value="{{.ID}}">
-            <table border="0">
-                <tr>
-                    <th>
-                        username
-                    </th>
-                    <td>
-                        <input type="text" name="username" value="" size="24">
-                    </td>
-                </tr>
-                <tr>
-                    <th>
-                        password
-                    </th>
-                    <td>
-                        <input type="password" name="password" value="" size="24">
-                    </td>
-                </tr>
-                <tr>
-                    <td colspan="2">
-                      <button type="submit" name="action" value="approve"> approve </button>
-                      <button type="submit" name="action" value="deny"> deny </button>
-                    </td>
-                </tr>
-            </table>
-        </form>
-        <a href="/register?id={{.ID}}"> Sign Up Page </a>
-    </div>
+<body class="op">
+    <header>
+        <div class="inner">
+            <span class="brand">Tegata OIDC Server</span>
+            <span class="role">OpenID Provider</span>
+        </div>
+    </header>
+    <main>
+        <div class="card">
+            <h1>Sign in</h1>
+            {{if .Error}}
+            <p class="error">
+                Error occured. {{.Error}}
+            </p>
+            {{end}}
+            {{if .Message}}
+            <p class="success">
+                {{.Message}}
+            </p>
+            {{end}}
+            <form action="/login" method="post">
+                <input type="hidden" name="id" value="{{.ID}}">
+                <label for="username">username</label>
+                <input type="text" id="username" name="username" value="" autocomplete="username">
+                <label for="password">password</label>
+                <input type="password" id="password" name="password" value="" autocomplete="current-password">
+                <p class="muted">approve sends an authorization code back to the client. deny sends access_denied instead.</p>
+                <div class="actions">
+                    <button type="submit" name="action" value="approve">approve</button>
+                    <button type="submit" name="action" value="deny" class="secondary">deny</button>
+                </div>
+            </form>
+        </div>
+        <p class="muted">No account yet? <a href="/register?id={{.ID}}">Sign Up Page</a></p>
+    </main>
 </body>
 </html>

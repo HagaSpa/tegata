@@ -2,15 +2,27 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Tegata Logout Confirm</title>
+    <link rel="stylesheet" href="/static/style.css">
 </head>
-<body>
-    <h2> Tegata OIDC Server </h2>
-    <div align="center">
-        <h2> Logout Tegata? </h2>
-        <form action="/logout/confirm" method="post">
-            <button type="submit"> Logout </button>
-        </form>
-    </div>
+<body class="op">
+    <header>
+        <div class="inner">
+            <span class="brand">Tegata OIDC Server</span>
+            <span class="role">OpenID Provider</span>
+        </div>
+    </header>
+    <main>
+        <div class="card">
+            <h1>Logout Tegata?</h1>
+            <p class="muted">The logout request did not prove which session it was for, so tegata asks you first. Applications you signed in to keep their own sessions.</p>
+            <form action="/logout/confirm" method="post">
+                <div class="actions">
+                    <button type="submit">Logout</button>
+                </div>
+            </form>
+        </div>
+    </main>
 </body>
 </html>

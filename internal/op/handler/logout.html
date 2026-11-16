@@ -2,16 +2,33 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Tegata Logout Executed</title>
+    <link rel="stylesheet" href="/static/style.css">
 </head>
-<body>
-    <h2> Tegata OIDC Server </h2>
-    <div align="center">
-        {{if .Error}}
-          {{.Error}}
-        {{else}}
-          Logout Success.
-        {{end}}
-    </div>
+<body class="op">
+    <header>
+        <div class="inner">
+            <span class="brand">Tegata OIDC Server</span>
+            <span class="role">OpenID Provider</span>
+        </div>
+    </header>
+    <main>
+        <div class="card">
+            {{if .Error}}
+            <h1>Logout failed</h1>
+            <p class="error">
+                {{.Error}}
+            </p>
+            <p class="muted">tegata did not end the session and did not redirect back to the client.</p>
+            {{else}}
+            <h1>Logged out</h1>
+            <p class="success">
+                Logout Success.
+            </p>
+            <p class="muted">The session at tegata has ended. You can close this page.</p>
+            {{end}}
+        </div>
+    </main>
 </body>
 </html>
