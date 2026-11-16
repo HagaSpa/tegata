@@ -29,6 +29,9 @@ func NewClients() *Clients {
 				RedirectURIs: []string{
 					"http://127.0.0.1:5556/callback",
 				},
+				PostLogoutRedirectURIs: []string{
+					"http://127.0.0.1:5556/",
+				},
 			},
 			"conformance": {
 				Secret: "conformance-secret",
