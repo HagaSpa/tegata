@@ -82,7 +82,7 @@ func main() {
 	fmt.Println("Serving on :8080...")
 
 	if isTLS {
-		log.Fatal(http.ListenAndServeTLS(":8080", certFile, keyFile, mux))
+		log.Fatal(http.ListenAndServeTLS(":8080", certFile, keyFile, handler.DenyFraming(mux)))
 	}
-	log.Fatal(http.ListenAndServe(":8080", mux))
+	log.Fatal(http.ListenAndServe(":8080", handler.DenyFraming(mux)))
 }
