@@ -8,9 +8,10 @@ ISSUER="https://tegata.localhost:8080"
 CONFIG="$(dirname "$0")/conformance-config.json"
 TIMEOUT="${TIMEOUT:-120}"
 BASIC_VARIANT='{"server_metadata":"discovery","client_registration":"static_client"}'
+LOGOUT_VARIANT='{"client_registration":"static_client","response_type":"code"}'
 
 usage() {
-  echo "usage: $0 [basic [module...] | config]" >&2
+  echo "usage: $0 [basic [module...] | config | logout [module...]]" >&2
   exit 1
 }
 
@@ -99,6 +100,7 @@ case "${1:-all}" in
   all)
     run_plan "Basic OP" oidcc-basic-certification-test-plan "$BASIC_VARIANT"
     run_plan "Config OP" oidcc-config-certification-test-plan ""
+    run_plan "RP-Initiated Logout OP" oidcc-rp-initiated-logout-certification-test-plan "$LOGOUT_VARIANT"
     ;;
   basic)
     shift
@@ -106,6 +108,10 @@ case "${1:-all}" in
     ;;
   config)
     run_plan "Config OP" oidcc-config-certification-test-plan ""
+    ;;
+  logout)
+    shift
+    run_plan "RP-Initiated Logout OP" oidcc-rp-initiated-logout-certification-test-plan "$LOGOUT_VARIANT" "$@"
     ;;
   *)
     usage

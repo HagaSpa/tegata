@@ -34,7 +34,7 @@ func NewClients() *Clients {
 				},
 			},
 			"conformance": {
-				Secret: "conformance-secret",
+				Secret: "conformance-secret-at-least-32-bytes",
 				RedirectURIs: []string{
 					"https://localhost.emobix.co.uk:8443/test/a/tegata/callback",
 				},

@@ -46,7 +46,7 @@ description = "Stop tegata and the conformance suite (results stay in the mongod
 run = "docker compose -f compose.conformance.yaml down"
 
 [tasks."conformance:test"]
-description = "Start tegata and the conformance suite, then run the Basic OP and Config OP tests and print the results (e.g. mise conformance:test basic oidcc-server)"
+description = "Start tegata and the conformance suite, then run the Basic OP, Config OP and RP-Initiated Logout OP tests and print the results (e.g. mise conformance:test basic oidcc-server, mise conformance:test logout)"
 depends = ["conformance:start"]
 run = "./scripts/conformance-test.sh"
 
