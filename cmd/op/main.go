@@ -78,6 +78,7 @@ func main() {
 	mux.HandleFunc("GET /register", registerHandler.Get)
 	mux.HandleFunc("POST /register", registerHandler.Post)
 	mux.HandleFunc("POST /logout/confirm", logoutHandler.Post)
+	mux.Handle("GET /static/", handler.NewStaticHandler())
 
 	fmt.Println("Serving on :8080...")
 

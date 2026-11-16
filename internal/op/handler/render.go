@@ -11,6 +11,7 @@ import (
 //go:embed register.html
 //go:embed logout.html
 //go:embed logout_confirm.html
+//go:embed static/*
 var htmlFS embed.FS
 
 type templateParam struct {

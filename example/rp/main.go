@@ -29,6 +29,9 @@ const (
 //go:embed *.html
 var htmlFS embed.FS
 
+//go:embed static
+var staticFS embed.FS
+
 var pages = template.Must(template.ParseFS(htmlFS, "*.html"))
 
 func env(key, fallback string) string {
@@ -139,6 +142,7 @@ func (s *sessions) lookup(r *http.Request) (string, *session, bool) {
 type indexPage struct {
 	SignedIn bool
 	Message  string
+	Error    string
 }
 
 type homePage struct {
@@ -183,6 +187,8 @@ func main() {
 	verifier := provider.Verifier(&oidc.Config{ClientID: config.ClientID})
 	store := &sessions{m: map[string]*session{}}
 
+	http.Handle("GET /static/", http.FileServerFS(staticFS))
+
 	http.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
 		var p indexPage
 		store.mu.Lock()
@@ -193,7 +199,7 @@ func main() {
 			if err == nil && c.Value == returned {
 				p.Message = "Signed out at the OP and redirected back here. The state matched."
 			} else {
-				p.Message = "Redirected back here with a state that does not match."
+				p.Error = "Redirected back here with a state that does not match."
 			}
 			clearCookie(w, logoutStateCookie)
 		}
