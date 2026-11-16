@@ -1,4 +1,4 @@
-module github.com/HagaSpa/tegata/tools/rp
+module github.com/HagaSpa/tegata/example/rp
 
 go 1.27.1
 

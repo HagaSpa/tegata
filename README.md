@@ -6,9 +6,9 @@ https://openid-foundation-japan.github.io/rfc6749.ja.html
 |---|---|---|---|
 | `openid-provider` | Authorization Server | `cmd/op`, `internal/op` | tegata itself. Issues authorization codes, ID tokens and access tokens |
 | `resource-server` | Resource Server | `cmd/rs`, `internal/rs` | Sample resource server. Serves `/notes` for access tokens issued by `openid-provider` |
-| `relying-party` | Client | `tools/rp` | Sample client with browser pages. Signs in, calls `resource-server` and logs out through `openid-provider` |
+| `relying-party` | Client | `example/rp` | Sample client with browser pages. Signs in, calls `resource-server` and logs out through `openid-provider` |
 
-The main module uses only the Go standard library. `tools/rp` is a separate module because it depends on go-oidc for verification.
+The main module uses only the Go standard library. `example/rp` is a separate module because it depends on go-oidc for verification.
 
 ## Endpoints
 
