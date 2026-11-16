@@ -2,7 +2,7 @@
 go = "1.27.1"
 
 [tasks."dev:start"]
-description = "Build and start tegata, the RS and the RP with compose and keep showing their logs (open http://127.0.0.1:5556/)"
+description = "Build and start tegata, the RS and the RP with compose and keep showing their logs (open http://127.0.0.1:5556/ to sign in and log out in the browser)"
 run = "docker compose up --build"
 
 [tasks."dev:start-bg"]

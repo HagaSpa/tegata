@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
+	"embed"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"io"
 	"log"
 	"net/http"
@@ -18,7 +21,15 @@ import (
 	"golang.org/x/oauth2"
 )
 
-const sessionCookie = "session"
+const (
+	sessionCookie     = "session"
+	logoutStateCookie = "logout_state"
+)
+
+//go:embed *.html
+var htmlFS embed.FS
+
+var pages = template.Must(template.ParseFS(htmlFS, "*.html"))
 
 func env(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
@@ -27,14 +38,41 @@ func env(key, fallback string) string {
 	return fallback
 }
 
-func setCallbackCookie(w http.ResponseWriter, name, value string) {
+func setShortCookie(w http.ResponseWriter, name, value string) {
 	http.SetCookie(w, &http.Cookie{Name: name, Value: value, MaxAge: 300, HttpOnly: true, Path: "/"})
 }
 
-func writeJSON(w http.ResponseWriter, v any) {
-	data, _ := json.MarshalIndent(v, "", "  ")
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(data)
+func clearCookie(w http.ResponseWriter, name string) {
+	http.SetCookie(w, &http.Cookie{Name: name, Value: "", MaxAge: -1, HttpOnly: true, Path: "/"})
+}
+
+func render(w http.ResponseWriter, status int, name string, data any) {
+	var buf bytes.Buffer
+	if err := pages.ExecuteTemplate(&buf, name, data); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(status)
+	w.Write(buf.Bytes())
+}
+
+type resultPage struct {
+	Title string
+	Body  string
+	Back  string
+}
+
+func showResult(w http.ResponseWriter, status int, title, body, back string) {
+	render(w, status, "result.html", resultPage{Title: title, Body: body, Back: back})
+}
+
+func indent(v any) string {
+	b, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return err.Error()
+	}
+	return string(b)
 }
 
 func fetchNotes(ctx context.Context, url string, token *oauth2.Token) (json.RawMessage, error) {
@@ -76,18 +114,39 @@ func shorten(s string) string {
 	return s[:8] + "..."
 }
 
-type sessions struct {
-	mu     sync.Mutex
-	tokens map[string]*oauth2.Token
+type session struct {
+	token    *oauth2.Token
+	idToken  string
+	idClaims json.RawMessage
+	userInfo json.RawMessage
+	notes    json.RawMessage
 }
 
-func (s *sessions) lookup(r *http.Request) (string, *oauth2.Token, bool) {
+type sessions struct {
+	mu sync.Mutex
+	m  map[string]*session
+}
+
+func (s *sessions) lookup(r *http.Request) (string, *session, bool) {
 	c, err := r.Cookie(sessionCookie)
 	if err != nil {
 		return "", nil, false
 	}
-	t, ok := s.tokens[c.Value]
-	return c.Value, t, ok
+	sess, ok := s.m[c.Value]
+	return c.Value, sess, ok
+}
+
+type indexPage struct {
+	SignedIn bool
+	Message  string
+}
+
+type homePage struct {
+	IDTokenClaims     string
+	UserInfo          string
+	Notes             string
+	AccessTokenExpiry string
+	RefreshToken      string
 }
 
 func main() {
@@ -95,7 +154,13 @@ func main() {
 	issuer := env("ISSUER", "http://localhost:8080")
 	listen := env("LISTEN", "127.0.0.1:5556")
 	redirectURL := env("REDIRECT_URL", "http://127.0.0.1:5556/callback")
+	postLogoutRedirectURL := env("POST_LOGOUT_REDIRECT_URL", "http://127.0.0.1:5556/")
 	notesURL := env("NOTES_URL", "http://localhost:9000/notes")
+
+	unregisteredURL, err := url.JoinPath(postLogoutRedirectURL, "unregistered")
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	provider, err := oidc.NewProvider(ctx, issuer)
 	if err != nil {
@@ -103,6 +168,7 @@ func main() {
 	}
 	var metadata struct {
 		RevocationEndpoint string `json:"revocation_endpoint"`
+		EndSessionEndpoint string `json:"end_session_endpoint"`
 	}
 	if err := provider.Claims(&metadata); err != nil {
 		log.Fatal(err)
@@ -115,160 +181,227 @@ func main() {
 		Scopes:       []string{oidc.ScopeOpenID, oidc.ScopeOfflineAccess, "profile", "email", "notes.read"},
 	}
 	verifier := provider.Verifier(&oidc.Config{ClientID: config.ClientID})
-	store := &sessions{tokens: map[string]*oauth2.Token{}}
+	store := &sessions{m: map[string]*session{}}
 
-	http.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
+		var p indexPage
+		store.mu.Lock()
+		_, _, p.SignedIn = store.lookup(r)
+		store.mu.Unlock()
+		if returned := r.URL.Query().Get("state"); returned != "" {
+			c, err := r.Cookie(logoutStateCookie)
+			if err == nil && c.Value == returned {
+				p.Message = "Signed out at the OP and redirected back here. The state matched."
+			} else {
+				p.Message = "Redirected back here with a state that does not match."
+			}
+			clearCookie(w, logoutStateCookie)
+		}
+		render(w, http.StatusOK, "index.html", p)
+	})
+
+	http.HandleFunc("GET /login", func(w http.ResponseWriter, r *http.Request) {
 		state, nonce := rand.Text(), rand.Text()
 		pkce := oauth2.GenerateVerifier()
-		setCallbackCookie(w, "state", state)
-		setCallbackCookie(w, "nonce", nonce)
-		setCallbackCookie(w, "verifier", pkce)
-		http.Redirect(w, r, config.AuthCodeURL(state, oidc.Nonce(nonce), oauth2.S256ChallengeOption(pkce)), http.StatusFound)
+		setShortCookie(w, "state", state)
+		setShortCookie(w, "nonce", nonce)
+		setShortCookie(w, "verifier", pkce)
+		opts := []oauth2.AuthCodeOption{oidc.Nonce(nonce), oauth2.S256ChallengeOption(pkce)}
+		if r.URL.Query().Get("prompt") == "none" {
+			opts = append(opts, oauth2.SetAuthURLParam("prompt", "none"))
+		}
+		http.Redirect(w, r, config.AuthCodeURL(state, opts...), http.StatusFound)
 	})
 
 	http.HandleFunc("GET /callback", func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
 		state, err := r.Cookie("state")
-		if err != nil || r.URL.Query().Get("state") != state.Value {
-			http.Error(w, "state did not match", http.StatusBadRequest)
+		if err != nil || q.Get("state") != state.Value {
+			showResult(w, http.StatusBadRequest, "Sign-in failed", "state did not match", "/")
 			return
 		}
-		if e := r.URL.Query().Get("error"); e != "" {
-			http.Error(w, "authorization failed: "+e+" "+r.URL.Query().Get("error_description"), http.StatusBadRequest)
+		if e := q.Get("error"); e != "" {
+			showResult(w, http.StatusBadRequest, "Sign-in failed", "error="+e+"\nerror_description="+q.Get("error_description"), "/")
 			return
 		}
 		pkce, err := r.Cookie("verifier")
 		if err != nil {
-			http.Error(w, "verifier not found", http.StatusBadRequest)
+			showResult(w, http.StatusBadRequest, "Sign-in failed", "verifier not found", "/")
 			return
 		}
-		token, err := config.Exchange(ctx, r.URL.Query().Get("code"), oauth2.VerifierOption(pkce.Value))
+		token, err := config.Exchange(r.Context(), q.Get("code"), oauth2.VerifierOption(pkce.Value))
 		if err != nil {
-			http.Error(w, "token exchange failed: "+err.Error(), http.StatusInternalServerError)
+			showResult(w, http.StatusInternalServerError, "Sign-in failed", "token exchange failed: "+err.Error(), "/")
 			return
 		}
 		rawIDToken, _ := token.Extra("id_token").(string)
-		idToken, err := verifier.Verify(ctx, rawIDToken)
+		idToken, err := verifier.Verify(r.Context(), rawIDToken)
 		if err != nil {
-			http.Error(w, "id_token verification failed: "+err.Error(), http.StatusInternalServerError)
+			showResult(w, http.StatusInternalServerError, "Sign-in failed", "id_token verification failed: "+err.Error(), "/")
 			return
 		}
 		nonce, err := r.Cookie("nonce")
 		if err != nil || idToken.Nonce != nonce.Value {
-			http.Error(w, "nonce did not match", http.StatusBadRequest)
+			showResult(w, http.StatusBadRequest, "Sign-in failed", "nonce did not match", "/")
 			return
 		}
-		userInfo, err := provider.UserInfo(ctx, oauth2.StaticTokenSource(token))
+		userInfo, err := provider.UserInfo(r.Context(), oauth2.StaticTokenSource(token))
 		if err != nil {
-			http.Error(w, "userinfo failed: "+err.Error(), http.StatusInternalServerError)
+			showResult(w, http.StatusInternalServerError, "Sign-in failed", "userinfo failed: "+err.Error(), "/")
 			return
 		}
 		if userInfo.Subject != idToken.Subject {
-			http.Error(w, "userinfo sub does not match id_token sub", http.StatusInternalServerError)
+			showResult(w, http.StatusInternalServerError, "Sign-in failed", "userinfo sub does not match id_token sub", "/")
 			return
 		}
-
-		notes, err := fetchNotes(ctx, notesURL, token)
+		notes, err := fetchNotes(r.Context(), notesURL, token)
 		if err != nil {
-			http.Error(w, "notes failed: "+err.Error(), http.StatusInternalServerError)
+			showResult(w, http.StatusInternalServerError, "Sign-in failed", "notes failed: "+err.Error(), "/")
 			return
 		}
 
+		sess := &session{token: token, idToken: rawIDToken, notes: notes}
+		idToken.Claims(&sess.idClaims)
+		userInfo.Claims(&sess.userInfo)
 		sid := rand.Text()
 		store.mu.Lock()
-		store.tokens[sid] = token
+		if old, _, ok := store.lookup(r); ok {
+			delete(store.m, old)
+		}
+		store.m[sid] = sess
 		store.mu.Unlock()
 		http.SetCookie(w, &http.Cookie{Name: sessionCookie, Value: sid, HttpOnly: true, Path: "/"})
+		clearCookie(w, "state")
+		clearCookie(w, "nonce")
+		clearCookie(w, "verifier")
+		http.Redirect(w, r, "/home", http.StatusFound)
+	})
 
-		var idClaims, userClaims json.RawMessage
-		idToken.Claims(&idClaims)
-		userInfo.Claims(&userClaims)
-		writeJSON(w, struct {
-			Message       string
-			IDTokenClaims json.RawMessage
-			UserInfo      json.RawMessage
-			Notes         json.RawMessage
-			OAuth2Token   *oauth2.Token
-			Next          map[string]string
-		}{"login completed", idClaims, userClaims, notes, token, map[string]string{
-			"/notes":  "call the resource server again (refreshes the access token only when it has expired)",
-			"/expire": "mark the access token as expired on the RP side, then open /notes",
-			"/logout": "revoke the refresh token at the OP and forget the session",
-		}})
+	http.HandleFunc("GET /home", func(w http.ResponseWriter, r *http.Request) {
+		store.mu.Lock()
+		_, sess, ok := store.lookup(r)
+		var p homePage
+		if ok {
+			p = homePage{
+				IDTokenClaims:     indent(sess.idClaims),
+				UserInfo:          indent(sess.userInfo),
+				Notes:             indent(sess.notes),
+				AccessTokenExpiry: sess.token.Expiry.Format(time.RFC3339),
+				RefreshToken:      shorten(sess.token.RefreshToken),
+			}
+		}
+		store.mu.Unlock()
+		if !ok {
+			http.Redirect(w, r, "/", http.StatusFound)
+			return
+		}
+		render(w, http.StatusOK, "home.html", p)
 	})
 
 	http.HandleFunc("GET /notes", func(w http.ResponseWriter, r *http.Request) {
 		store.mu.Lock()
 		defer store.mu.Unlock()
-		sid, current, ok := store.lookup(r)
+		sid, sess, ok := store.lookup(r)
 		if !ok {
-			http.Error(w, "no session: log in at /", http.StatusUnauthorized)
+			showResult(w, http.StatusUnauthorized, "No session", "Sign in first.", "/")
 			return
 		}
+		current := sess.token
 		next, err := config.TokenSource(r.Context(), current).Token()
 		if err != nil {
-			delete(store.tokens, sid)
-			http.Error(w, "refresh failed, log in again at /: "+err.Error(), http.StatusUnauthorized)
+			delete(store.m, sid)
+			clearCookie(w, sessionCookie)
+			showResult(w, http.StatusUnauthorized, "Refresh failed", "Sign in again.\n\n"+err.Error(), "/")
 			return
 		}
-		store.tokens[sid] = next
+		sess.token = next
 		refreshed := next != current
 		if refreshed {
 			log.Printf("refreshed: refresh_token %s -> %s", shorten(current.RefreshToken), shorten(next.RefreshToken))
 		}
-
 		notes, err := fetchNotes(r.Context(), notesURL, next)
 		if err != nil {
-			http.Error(w, "notes failed: "+err.Error(), http.StatusInternalServerError)
+			showResult(w, http.StatusInternalServerError, "Resource server error", err.Error(), "/home")
 			return
 		}
-		writeJSON(w, struct {
+		sess.notes = notes
+		showResult(w, http.StatusOK, "Called the resource server", indent(struct {
 			Refreshed          bool
 			RefreshTokenBefore string
 			RefreshTokenAfter  string
 			AccessTokenExpiry  time.Time
 			Notes              json.RawMessage
-		}{refreshed, shorten(current.RefreshToken), shorten(next.RefreshToken), next.Expiry, notes})
+		}{refreshed, shorten(current.RefreshToken), shorten(next.RefreshToken), next.Expiry, notes}), "/home")
 	})
 
-	http.HandleFunc("GET /expire", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("POST /expire", func(w http.ResponseWriter, r *http.Request) {
 		store.mu.Lock()
 		defer store.mu.Unlock()
-		sid, current, ok := store.lookup(r)
+		_, sess, ok := store.lookup(r)
 		if !ok {
-			http.Error(w, "no session: log in at /", http.StatusUnauthorized)
+			showResult(w, http.StatusUnauthorized, "No session", "Sign in first.", "/")
 			return
 		}
-		expired := *current
+		expired := *sess.token
 		expired.Expiry = time.Now().Add(-time.Minute)
-		store.tokens[sid] = &expired
-		writeJSON(w, struct {
-			Message           string
-			AccessTokenExpiry time.Time
-		}{"access token marked as expired on the RP side; open /notes to refresh", expired.Expiry})
+		sess.token = &expired
+		showResult(w, http.StatusOK, "Marked the access token as expired",
+			"Only this RP treats the access token as expired. The OP and the resource server still accept it.\n"+
+				"Call the resource server again to refresh it with the refresh token.\n\n"+
+				"AccessTokenExpiry: "+expired.Expiry.Format(time.RFC3339), "/home")
 	})
 
-	http.HandleFunc("GET /logout", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("POST /revoke", func(w http.ResponseWriter, r *http.Request) {
 		store.mu.Lock()
 		defer store.mu.Unlock()
-		sid, current, ok := store.lookup(r)
+		_, sess, ok := store.lookup(r)
 		if !ok {
-			http.Error(w, "no session: log in at /", http.StatusUnauthorized)
+			showResult(w, http.StatusUnauthorized, "No session", "Sign in first.", "/")
 			return
 		}
-		delete(store.tokens, sid)
-		http.SetCookie(w, &http.Cookie{Name: sessionCookie, Value: "", MaxAge: -1, Path: "/"})
-		status, err := revoke(r.Context(), metadata.RevocationEndpoint, config, current.RefreshToken)
+		status, err := revoke(r.Context(), metadata.RevocationEndpoint, config, sess.token.RefreshToken)
 		if err != nil {
-			http.Error(w, "revoke failed: "+err.Error(), http.StatusBadGateway)
+			showResult(w, http.StatusBadGateway, "Revoke failed", err.Error(), "/home")
 			return
 		}
-		writeJSON(w, struct {
-			Message      string
-			RevokeStatus string
-			RefreshToken string
-		}{"logged out", status, shorten(current.RefreshToken)})
+		showResult(w, http.StatusOK, "Revoked the refresh token",
+			"RevokeStatus: "+status+"\nRefreshToken: "+shorten(sess.token.RefreshToken)+"\n\n"+
+				"The access token still works until it expires.\n"+
+				"Expire the access token and call the resource server again to see the refresh fail.", "/home")
 	})
 
-	log.Printf("RP listening on http://%s/  (issuer=%s client_id=%s redirect=%s)", listen, issuer, config.ClientID, redirectURL)
+	http.HandleFunc("POST /logout", func(w http.ResponseWriter, r *http.Request) {
+		store.mu.Lock()
+		defer store.mu.Unlock()
+		sid, sess, ok := store.lookup(r)
+		if !ok {
+			showResult(w, http.StatusUnauthorized, "No session", "Sign in first.", "/")
+			return
+		}
+		params := url.Values{}
+		switch r.PostFormValue("variant") {
+		case "redirect":
+			state := rand.Text()
+			setShortCookie(w, logoutStateCookie, state)
+			params.Set("id_token_hint", sess.idToken)
+			params.Set("post_logout_redirect_uri", postLogoutRedirectURL)
+			params.Set("state", state)
+		case "no-redirect-uri":
+			params.Set("id_token_hint", sess.idToken)
+		case "no-id-token-hint":
+			params.Set("post_logout_redirect_uri", postLogoutRedirectURL)
+		case "unregistered-uri":
+			params.Set("id_token_hint", sess.idToken)
+			params.Set("post_logout_redirect_uri", unregisteredURL)
+		default:
+			showResult(w, http.StatusBadRequest, "Unknown logout", "variant must be redirect, no-redirect-uri, no-id-token-hint or unregistered-uri", "/home")
+			return
+		}
+		delete(store.m, sid)
+		clearCookie(w, sessionCookie)
+		http.Redirect(w, r, metadata.EndSessionEndpoint+"?"+params.Encode(), http.StatusFound)
+	})
+
+	log.Printf("RP listening on http://%s/  (issuer=%s client_id=%s redirect=%s post_logout_redirect=%s)", listen, issuer, config.ClientID, redirectURL, postLogoutRedirectURL)
 	log.Fatal(http.ListenAndServe(listen, nil))
 }

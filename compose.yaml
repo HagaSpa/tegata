@@ -36,4 +36,5 @@ services:
       - ISSUER=http://localhost:8080
       - LISTEN=0.0.0.0:5556
       - REDIRECT_URL=http://127.0.0.1:5556/callback
+      - POST_LOGOUT_REDIRECT_URL=http://127.0.0.1:5556/
       - NOTES_URL=http://localhost:9000/notes

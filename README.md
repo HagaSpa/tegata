@@ -6,7 +6,7 @@ https://openid-foundation-japan.github.io/rfc6749.ja.html
 |---|---|---|---|
 | `openid-provider` | Authorization Server | `cmd/op`, `internal/op` | tegata itself. Issues authorization codes, ID tokens and access tokens |
 | `resource-server` | Resource Server | `cmd/rs`, `internal/rs` | Sample resource server. Serves `/notes` for access tokens issued by `openid-provider` |
-| `relying-party` | Client | `tools/rp` | Sample client that signs in through `openid-provider` |
+| `relying-party` | Client | `tools/rp` | Sample client with browser pages. Signs in, calls `resource-server` and logs out through `openid-provider` |
 
 The main module uses only the Go standard library. `tools/rp` is a separate module because it depends on go-oidc for verification.
 
@@ -24,10 +24,15 @@ OpenID Connect is built on top of OAuth 2.0. Some endpoints come from OAuth 2.0 
 | `openid-provider` | `POST /token` | OAuth 2.0 ([RFC 6749 §3.2](https://www.rfc-editor.org/rfc/rfc6749#section-3.2)), extended by OpenID Connect ([Core §3.1.3](https://openid.net/specs/openid-connect-core-1_0.html#TokenEndpoint): the ID token in the response) | Exchanges an authorization code or a refresh token for tokens |
 | `openid-provider` | `POST /revoke` | OAuth 2.0 ([RFC 7009 §2](https://www.rfc-editor.org/rfc/rfc7009#section-2)) | Revokes a refresh token |
 | `openid-provider` | `GET`, `POST /userinfo` | OpenID Connect ([Core §5.3](https://openid.net/specs/openid-connect-core-1_0.html#UserInfo)) | Returns claims about the user for an access token. In OAuth 2.0 terms, it is a protected resource hosted by the OP |
+| `openid-provider` | `GET`, `POST /logout` | OpenID Connect ([RP-Initiated Logout 1.0 §2](https://openid.net/specs/openid-connect-rpinitiated-1_0.html#RPLogout)) | Ends the OP session. With a valid `id_token_hint` and a registered `post_logout_redirect_uri`, redirects back to the client with `state`. Without `id_token_hint`, or when it does not match the OP session, shows a confirmation page instead |
+| `openid-provider` | `POST /logout/confirm` | tegata only | Receives the confirmation page and ends the OP session |
 | `openid-provider` | `GET /` | tegata only | Returns `Hello, World!` |
 | `resource-server` | `GET`, `POST /notes` | OAuth 2.0 (a protected resource. The access token is sent as in [RFC 6750 §2.1](https://www.rfc-editor.org/rfc/rfc6750#section-2.1)) | Reads notes with `notes.read` and writes notes with `notes.write` |
-| `relying-party` | `GET /callback` | OAuth 2.0 (the redirection endpoint, [RFC 6749 §3.1.2](https://www.rfc-editor.org/rfc/rfc6749#section-3.1.2)) | Receives the code, exchanges it for tokens, verifies the ID token, then calls `/userinfo` and `/notes` |
-| `relying-party` | `GET /`, `/notes`, `/expire`, `/logout` | tegata only (demo) | Starts the login, calls the resource server again, marks the access token as expired, and revokes the refresh token |
+| `relying-party` | `GET /` | OpenID Connect (the `post_logout_redirect_uri` target, [RP-Initiated Logout 1.0 §3](https://openid.net/specs/openid-connect-rpinitiated-1_0.html#RedirectionAfterLogout)) | The top page. Has the sign-in buttons, and checks the `state` when `openid-provider` redirects back after logout |
+| `relying-party` | `GET /login` | tegata only (demo) | Creates `state`, `nonce` and the PKCE verifier, then redirects to `/authorize`. `?prompt=none` adds `prompt=none` |
+| `relying-party` | `GET /callback` | OAuth 2.0 (the redirection endpoint, [RFC 6749 §3.1.2](https://www.rfc-editor.org/rfc/rfc6749#section-3.1.2)) | Receives the code, exchanges it for tokens, verifies the ID token, calls `/userinfo` and `/notes`, then redirects to `/home` |
+| `relying-party` | `GET /home`, `GET /notes`, `POST /expire`, `POST /revoke` | tegata only (demo) | Shows the ID token claims, UserInfo and notes, calls the resource server again, marks the access token as expired, and revokes the refresh token |
+| `relying-party` | `POST /logout` | tegata only (demo) | Forgets the session at the RP and sends the browser to `end_session_endpoint`, with or without `id_token_hint` and `post_logout_redirect_uri`, or with an unregistered `post_logout_redirect_uri` |
 
 ## Conformance testing
 

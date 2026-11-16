@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Tegata Sample RP Home</title>
+</head>
+<body>
+    <h2> Tegata Sample RP </h2>
+    <p> <a href="/"> Top </a> </p>
+
+    <h3> ID token claims </h3>
+    <pre>{{.IDTokenClaims}}</pre>
+
+    <h3> UserInfo </h3>
+    <pre>{{.UserInfo}}</pre>
+
+    <h3> Notes from the resource server </h3>
+    <pre>{{.Notes}}</pre>
+
+    <h3> Tokens </h3>
+    <table border="1">
+        <tr>
+            <th> access token expiry at this RP </th>
+            <td> {{.AccessTokenExpiry}} </td>
+        </tr>
+        <tr>
+            <th> refresh token </th>
+            <td> {{.RefreshToken}} </td>
+        </tr>
+    </table>
+
+    <h3> Resource server and tokens </h3>
+    <table border="1">
+        <tr>
+            <td>
+                <form action="/notes" method="get">
+                    <button type="submit"> Call the resource server </button>
+                </form>
+            </td>
+            <td> Calls /notes again. Refreshes the access token first only when it has expired </td>
+        </tr>
+        <tr>
+            <td>
+                <form action="/expire" method="post">
+                    <button type="submit"> Expire the access token </button>
+                </form>
+            </td>
+            <td> Marks the access token as expired at this RP, so the next call refreshes it </td>
+        </tr>
+        <tr>
+            <td>
+                <form action="/revoke" method="post">
+                    <button type="submit"> Revoke the refresh token </button>
+                </form>
+            </td>
+            <td> Revokes the refresh token at tegata, so the next refresh fails </td>
+        </tr>
+    </table>
+
+    <h3> Log out (RP-Initiated Logout) </h3>
+    <p> Every button forgets the session at this RP, then sends you to the end_session_endpoint of tegata. </p>
+    <form action="/logout" method="post">
+        <table border="1">
+            <tr>
+                <th> button </th>
+                <th> sent to tegata </th>
+                <th> expected at tegata </th>
+            </tr>
+            <tr>
+                <td> <button type="submit" name="variant" value="redirect"> Log out </button> </td>
+                <td> id_token_hint, post_logout_redirect_uri, state </td>
+                <td> Ends the session and redirects back to the top page of this RP with the state </td>
+            </tr>
+            <tr>
+                <td> <button type="submit" name="variant" value="no-redirect-uri"> Log out without post_logout_redirect_uri </button> </td>
+                <td> id_token_hint </td>
+                <td> Ends the session and shows its logout page </td>
+            </tr>
+            <tr>
+                <td> <button type="submit" name="variant" value="no-id-token-hint"> Log out without id_token_hint </button> </td>
+                <td> post_logout_redirect_uri </td>
+                <td> Asks you to confirm. Does not redirect back </td>
+            </tr>
+            <tr>
+                <td> <button type="submit" name="variant" value="unregistered-uri"> Log out with an unregistered post_logout_redirect_uri </button> </td>
+                <td> id_token_hint, post_logout_redirect_uri that is not registered </td>
+                <td> Shows an error. The session stays, so prompt=none still signs you in </td>
+            </tr>
+        </table>
+    </form>
+</body>
+</html>
