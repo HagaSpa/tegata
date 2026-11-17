@@ -26,13 +26,13 @@ func TestUsers_FindBySub(t *testing.T) {
 			seedPassword: "password",
 			seedSub:      "sub",
 			seedName:     "name",
-			seedEmail:    "haga@gmail.com",
+			seedEmail:    "haga@example.com",
 			sub:          "sub",
 			want: &Profile{
 				Sub:               "sub",
 				Name:              "name",
 				PreferredUsername: "username",
-				Email:             "haga@gmail.com",
+				Email:             "haga@example.com",
 				EmailVerified:     true,
 			},
 		},
@@ -42,7 +42,7 @@ func TestUsers_FindBySub(t *testing.T) {
 			seedPassword: "password",
 			seedSub:      "sub",
 			seedName:     "name",
-			seedEmail:    "haga@gmail.com",
+			seedEmail:    "haga@example.com",
 			sub:          "sub2",
 			want:         nil,
 		},
@@ -95,7 +95,7 @@ func TestUsers_Register(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s, err := NewUsers("username", "password", "sub", "name", "haga@gmail.com")
+			s, err := NewUsers("username", "password", "sub", "name", "haga@example.com")
 			if err != nil {
 				t.Fatalf("could not construct receiver type: %v", err)
 			}
@@ -148,7 +148,7 @@ func TestUsers_Register_DuplicatedUsername(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s, err := NewUsers("username", "password", "sub", "name", "haga@gmail.com")
+			s, err := NewUsers("username", "password", "sub", "name", "haga@example.com")
 			if err != nil {
 				t.Fatalf("could not construct receiver type: %v", err)
 			}
@@ -168,7 +168,7 @@ func TestUsers_Register_DuplicatedUsername(t *testing.T) {
 }
 
 func TestUsers_Register_Concurrent(t *testing.T) {
-	s, err := NewUsers("username", "password", "sub", "name", "haga@gmail.com")
+	s, err := NewUsers("username", "password", "sub", "name", "haga@example.com")
 	if err != nil {
 		t.Fatalf("could not construct receiver type: %v", err)
 	}
@@ -230,7 +230,7 @@ func TestUsers_Register_Concurrent(t *testing.T) {
 }
 
 func TestUsers_Register_AfterUnknownUsername(t *testing.T) {
-	s, err := NewUsers("username", "password", "sub", "name", "haga@gmail.com")
+	s, err := NewUsers("username", "password", "sub", "name", "haga@example.com")
 	if err != nil {
 		t.Fatalf("could not construct receiver type: %v", err)
 	}
