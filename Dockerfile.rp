@@ -17,4 +17,6 @@ FROM gcr.io/distroless/static-debian13:nonroot@sha256:e2e927ec666bae08560abb3c55
 
 COPY --from=build /bin/rp /bin/
 
+ENV TZ=Asia/Tokyo
+
 ENTRYPOINT ["/bin/rp"]
