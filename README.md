@@ -70,6 +70,8 @@ tegata is not meant to be run as a service. Everything below is out of scope on 
 - Request objects (`request`, `request_uri`), the `claims` parameter, `acr` and the `address` and `phone` scopes
 - Revoking access tokens. They are self-contained JWTs that stay valid until they expire after one hour
 - A separate consent page. The login page has the approve and deny buttons
+- Limiting login attempts. The login form can be tried any number of times ([RFC 6749 §10.10](https://www.rfc-editor.org/rfc/rfc6749#section-10.10))
+- TLS outside the conformance setup. `mise dev:start` serves http, and the development clients use http redirect URIs
 - Audit logs
 
 ## Endpoints
