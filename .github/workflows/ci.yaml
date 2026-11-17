@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: example/rp/go.sum
+      - name: gofmt
+        run: |
+          out="$(gofmt -l .)"
+          [ -z "$out" ] || { echo "$out"; exit 1; }
+      - name: go vet
+        run: go vet ./...
+      - name: go test
+        run: go test ./...
+      - name: go test -race
+        run: go test -race ./...
+      - name: go vet (example/rp)
+        working-directory: example/rp
+        run: go vet ./...
+      - name: go build (example/rp)
+        working-directory: example/rp
+        run: go build ./...
